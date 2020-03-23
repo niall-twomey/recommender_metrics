@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 
-def generate_random_data(n_users=20, n_items=100, n_interactions_per_user=10, random_state=1234):
+def generate_random_data(n_users=20, n_items=100, n_interactions_per_user=20, random_state=1234):
     rng = np.random.RandomState(random_state)
 
     data = []
