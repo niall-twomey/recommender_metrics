@@ -23,7 +23,4 @@ def generate_random_data(n_users=20, n_items=100, n_interactions_per_user=10, ra
 
     return pd.DataFrame(
         data
-    ).sort_values(
-        by=['group_id', 'score'],
-        ascending=[True, False]
     )
