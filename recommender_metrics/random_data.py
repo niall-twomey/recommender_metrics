@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 
+__all__ = [
+    'generate_random_data'
+]
+
 
 def generate_random_data(n_users=20, n_items=100, n_interactions_per_user=10, random_state=1234):
     rng = np.random.RandomState(random_state)
