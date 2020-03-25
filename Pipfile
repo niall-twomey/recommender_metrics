@@ -9,6 +9,8 @@ ipython = "*"
 [packages]
 pandas = "*"
 numpy = "*"
+scikit-learn = "*"
+tqdm = "*"
 
 [requires]
 python_version = "3.6"
