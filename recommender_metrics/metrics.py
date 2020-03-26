@@ -64,6 +64,10 @@ def calculate_metrics_from_dataframe(df, k_list=None, **metrics):
     results_list = list()
     k_list = sorted(k_list)
 
+    keys = ['group_id']
+    if 'user_id' in df:
+        keys.append('user_id')
+
     # Iterate over groups
     for group_id, sorted_ranked_group in tqdm(
             df_ranked_sorted.groupby('group_id'),
@@ -71,8 +75,10 @@ def calculate_metrics_from_dataframe(df, k_list=None, **metrics):
     ):
         res = dict(
             group_id=group_id,
-            user_id=sorted_ranked_group['user_id'].iloc[0]
         )
+
+        if len(keys) == 2:
+            res['user_id'] = sorted_ranked_group['user_id'].iloc[0]
 
         # Iterate over the list of k values
         for k in k_list:
@@ -93,14 +99,14 @@ def calculate_metrics_from_dataframe(df, k_list=None, **metrics):
 
     # Prepare the results dataframe
     results = pd.DataFrame(results_list)
-    results.set_index(['group_id', 'user_id'], drop=True, inplace=True)
+    results.set_index(keys, drop=True, inplace=True)
     results_mean = results.mean()
 
     return results, results_mean
 
 
-def calculate_metrics(group_ids, user_ids, item_ids, scores, labels, k_list=None, **metrics):
-    if len(set(map(len, [group_ids, user_ids, item_ids, scores, labels]))) != 1:
+def calculate_metrics(group_ids, scores, labels, k_list=None, **metrics):
+    if len(set(map(len, [group_ids, scores, labels]))) != 1:
         raise ValueError(
             'All inputs to this function must be of the same length'
         )
@@ -108,8 +114,6 @@ def calculate_metrics(group_ids, user_ids, item_ids, scores, labels, k_list=None
     # Populate a new dataframe and invoke the previous function to calculate metrics
     df = pd.DataFrame(dict(
         group_id=group_ids,
-        user_id=user_ids,
-        item_id=item_ids,
         score=scores,
         label=labels,
     ))

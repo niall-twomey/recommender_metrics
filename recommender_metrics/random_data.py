@@ -7,6 +7,61 @@ __all__ = [
 ]
 
 
+def _test_gh_data():
+    from recommender_metrics.metrics import calculate_metrics_from_dataframe, average_precision
+
+    groupby_keys = ['session_no', 'query']
+    info_keys = ['action', 'position']
+
+    scores = pd.read_csv('../data_private/map_sample_dataset.csv')
+    scores = scores[groupby_keys + info_keys][scores.action == 'click']
+
+    rows = []
+    for group_id, group in scores.groupby(['session_no', 'query']):
+        session_no, query = group_id
+        click_set = set(group.position.values - 1)
+        assert min(click_set) >= 0
+        # This data assumes that at least 20 items are presented to the user
+        for ii in range(max(20, int(max(click_set)))):
+            rows.append(dict(
+                group_id=(session_no, query),
+                score=-ii,
+                label=int(ii in click_set),
+            ))
+        # Debug messages
+        # if session_no == 3513781251:
+        #     sel = scores[scores.session_no == session_no]
+        #     print(sel.shape)
+        #     print(sel.to_string(index=False))
+        #     inds = sel.sort_values('position')['position'].unique()
+        #     inds = inds[inds < 20]
+        #     print(inds)
+        #     print(np.ones_like(inds).cumsum() / inds)
+        #     print((np.ones_like(inds).cumsum() / inds).mean())
+        #     print()
+
+    # Calculate metrics over this data
+    score_df = pd.DataFrame(rows)
+    met, met_mean = calculate_metrics_from_dataframe(
+        score_df, [20], average_precision=average_precision
+    )
+
+    # Load GH's results
+    scores_sorted = pd.read_csv('../data_private/map_sample_dataset_scored.csv')
+    ghd = scores_sorted.groupby(
+        ['session_no', 'query']
+    )['mean_average_precision'].max().to_dict()
+
+    # Print the instances GH's and my metrics disagree
+    for session_no, met in met.iterrows():
+        me, gh = met['average_precision_at_20'], ghd[session_no]
+        if not np.isclose(me, gh):
+            print(f'session={session_no} nt={me:.5f} gh={gh:.5f}')
+
+    # Known (excusable) discrepancies:
+    #   3513781251
+
+
 def predefined_data():
     data = []
     for ii, ll in enumerate(
@@ -40,3 +95,11 @@ def generate_random_data(n_users=20, n_items=100, n_interactions_per_user=20, ra
     return pd.DataFrame(
         data
     )
+
+
+if __name__ == '__main__':
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
+
+    _test_gh_data()
