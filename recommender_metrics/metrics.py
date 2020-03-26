@@ -12,87 +12,92 @@ __all__ = [
 ]
 
 
-def average_precision(df_at_k, df):
-    pos_group = df_at_k.loc[df_at_k.label == 1]
+def average_precision(df_at_k, df, ranked_col, label_col):
+    pos_group = df_at_k.loc[df_at_k[label_col] == 1]
     if len(pos_group) == 0:
         return 0.0  # TODO: check this ret val
-    precisions = pos_group.label.cumsum() / pos_group.score_rank
+    precisions = pos_group[label_col].cumsum() / pos_group[ranked_col]
     return precisions.mean()
 
 
-def precision(df_at_k, df):
-    precision_at_k = df_at_k['label'].cumsum() / df_at_k['score_rank']
+def precision(df_at_k, df, ranked_col, label_col):
+    precision_at_k = df_at_k[label_col].cumsum() / df_at_k[ranked_col]
     return precision_at_k.values[-1]
 
 
-def recall(df_at_k, df):
-    den = df['label'].sum()
+def recall(df_at_k, df, ranked_col, label_col):
+    den = df[label_col].sum()
     if den == 0:
         return 1.0  # TODO: check this ret val
-    recalls = df_at_k['label'].cumsum() / den
+    recalls = df_at_k[label_col].cumsum() / den
     return recalls.values[-1]
 
 
-def calculate_metrics_from_dataframe(df, k_list=None, **metrics):
+def calculate_metrics_from_dataframe(
+        df,
+        k_list=None,
+        ascending=False,
+        group_col='group_id',
+        label_col='label',
+        score_col='score',
+        metrics=None
+):
     # Do basic validation on the list of k values
     if isinstance(k_list, int):
         k_list = [k_list]
-
-    if k_list is None or len(k_list) == 0:
+    elif k_list is None or len(k_list) == 0:
         k_list = [1, 5, 10, 20]
 
     # Do basic validation on the dictionary of metrics
-    if len(metrics) == 0:
+    if metrics is None or len(metrics) == 0:
         metrics = dict(
             mAP=average_precision,
             precison=precision,
             reccall=recall
         )
-
+    assert isinstance(metrics, dict)
     if not all(map(callable, metrics.values())):
         raise TypeError(
             f'All metrics passed into this function must be callable'
         )
 
     # Rank the dataframe, and also sort by the group rank
-    df_ranked_sorted = utils.rank_dataframe(
+    df_ranked_sorted, ranked_col = utils.rank_dataframe(
         df=df,
+        ascending=ascending,
         from_zero=False,
         sort_group_rank=True,
+        group_col=group_col,
+        score_col=score_col,
     )
 
     results_list = list()
     k_list = sorted(k_list)
 
-    keys = ['group_id']
-    if 'user_id' in df:
-        keys.append('user_id')
+    keys = [group_col]
 
     # Iterate over groups
     for group_id, sorted_ranked_group in tqdm(
-            df_ranked_sorted.groupby('group_id'),
+            df_ranked_sorted.groupby(group_col),
             desc='Metric calculation'
     ):
-        res = dict(
-            group_id=group_id,
-        )
-
-        if len(keys) == 2:
-            res['user_id'] = sorted_ranked_group['user_id'].iloc[0]
+        res = {group_col: group_id}
 
         # Iterate over the list of k values
         for k in k_list:
             # Slice the dataframe for ranks less or k (equality test since
             # the dataframe is indexed from 1; see `from_zero` field above)
             sorted_ranked_group_at_k = sorted_ranked_group.loc[
-                df_ranked_sorted['score_rank'] <= k
+                df_ranked_sorted[ranked_col] <= k
                 ]
 
             # Evaluate the metrics, and specify the k value in the keys
             for key, func in metrics.items():
                 res[f'{key}_at_{k}'] = func(
                     df_at_k=sorted_ranked_group_at_k,
-                    df=sorted_ranked_group
+                    df=sorted_ranked_group,
+                    ranked_col=ranked_col,
+                    label_col=label_col,
                 )
 
         results_list.append(res)
@@ -105,7 +110,14 @@ def calculate_metrics_from_dataframe(df, k_list=None, **metrics):
     return results, results_mean
 
 
-def calculate_metrics(group_ids, scores, labels, k_list=None, **metrics):
+def calculate_metrics(
+        group_ids,
+        scores,
+        labels,
+        k_list=None,
+        ascending=False,
+        metrics=None
+):
     if len(set(map(len, [group_ids, scores, labels]))) != 1:
         raise ValueError(
             'All inputs to this function must be of the same length'
@@ -119,7 +131,13 @@ def calculate_metrics(group_ids, scores, labels, k_list=None, **metrics):
     ))
 
     return calculate_metrics_from_dataframe(
-        df=df, k_list=k_list, **metrics
+        df=df,
+        k_list=k_list,
+        ascending=ascending,
+        group_col='group_id',
+        score_col='score',
+        label_col='label',
+        metrics=metrics,
     )
 
 
@@ -134,12 +152,11 @@ def main():
 
     full_results, mean_results = calculate_metrics(
         group_ids=df.group_id,
-        user_ids=df.user_id,
-        item_ids=df.item_id,
         scores=df.score,
-        labels=df.label
+        labels=df.label,
     )
 
+    print(full_results)
     print(mean_results)
 
 

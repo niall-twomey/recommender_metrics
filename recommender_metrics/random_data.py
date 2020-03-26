@@ -25,8 +25,8 @@ def _test_gh_data():
         for ii in range(max(20, int(max(click_set)))):
             rows.append(dict(
                 group_id=(session_no, query),
-                score=-ii,
                 label=int(ii in click_set),
+                score=-ii,
             ))
         # Debug messages
         # if session_no == 3513781251:
@@ -42,9 +42,7 @@ def _test_gh_data():
 
     # Calculate metrics over this data
     score_df = pd.DataFrame(rows)
-    met, met_mean = calculate_metrics_from_dataframe(
-        score_df, [20], average_precision=average_precision
-    )
+    mets, met_mean = calculate_metrics_from_dataframe(score_df)
 
     # Load GH's results
     scores_sorted = pd.read_csv('../data_private/map_sample_dataset_scored.csv')
@@ -53,16 +51,22 @@ def _test_gh_data():
     )['mean_average_precision'].max().to_dict()
 
     # Print the instances GH's and my metrics disagree
-    for session_no, met in met.iterrows():
-        me, gh = met['average_precision_at_20'], ghd[session_no]
+    for session_no, met in mets.iterrows():
+        me, gh = met['mAP_at_20'], ghd[session_no]
         if not np.isclose(me, gh):
             print(f'session={session_no} nt={me:.5f} gh={gh:.5f}')
 
     # Known (excusable) discrepancies:
     #   3513781251
 
+    print(mets)
+    print(met_mean)
+
 
 def predefined_data():
+    # This data is from the following excellent discussion on metric calculation for rec sys:
+    #  https://ils.unc.edu/courses/2013_spring/inls509_001/lectures/10-EvaluationMetrics.pdf
+
     data = []
     for ii, ll in enumerate(
             [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1]
@@ -74,6 +78,7 @@ def predefined_data():
             score=-ii,
             label=ll,
         ))
+
     return pd.DataFrame(data)
 
 
