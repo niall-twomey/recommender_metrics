@@ -8,11 +8,11 @@ __all__ = [
     'precision',
     'recall',
     'calculate_metrics_from_dataframe',
-    'calculate_metrics'
+    'calculate_metrics',
 ]
 
 
-def average_precision(df_at_k, df, ranked_col, label_col):
+def average_precision(df, df_at_k, ranked_col, label_col):
     pos_group = df_at_k.loc[df_at_k[label_col] == 1]
     if len(pos_group) == 0:
         return 0.0  # TODO: check this ret val
@@ -20,12 +20,12 @@ def average_precision(df_at_k, df, ranked_col, label_col):
     return precisions.mean()
 
 
-def precision(df_at_k, df, ranked_col, label_col):
+def precision(df, df_at_k, ranked_col, label_col):
     precision_at_k = df_at_k[label_col].cumsum() / df_at_k[ranked_col]
     return precision_at_k.values[-1]
 
 
-def recall(df_at_k, df, ranked_col, label_col):
+def recall(df, df_at_k, ranked_col, label_col):
     den = df[label_col].sum()
     if den == 0:
         return 1.0  # TODO: check this ret val
@@ -79,7 +79,7 @@ def calculate_metrics_from_dataframe(
     # Iterate over groups
     for group_id, sorted_ranked_group in tqdm(
             df_ranked_sorted.groupby(group_col),
-            desc='Metric calculation'
+            desc=f'Calculating performance metrics over {group_col}'
     ):
         res = {group_col: group_id}
 
@@ -146,17 +146,16 @@ def main():
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 1000)
 
-    from recommender_metrics.random_data import generate_random_data
-    df = generate_random_data()
-    print(df.head())
+    from recommender_metrics import random_data
 
-    full_results, mean_results = calculate_metrics(
-        group_ids=df.group_id,
-        scores=df.score,
-        labels=df.label,
+    full_results, mean_results = calculate_metrics_from_dataframe(
+        random_data.predefined_data()
     )
+    print(mean_results)
 
-    print(full_results)
+    full_results, mean_results = calculate_metrics_from_dataframe(
+        random_data.generate_random_data()
+    )
     print(mean_results)
 
 
