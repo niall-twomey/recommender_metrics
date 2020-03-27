@@ -12,6 +12,26 @@ The main functions of the library are:
 
 and their docstrings outline their use in detail. 
 
+## Installation 
+
+### Pipenv
+
+Add the following to the `Pipfile`: 
+
+```
+recommender_metrics = {git = "https://github.com/niall-twomey/recommender_metrics.git",ref = "master"}
+```
+
+### Pip
+
+Execute the following command 
+
+```shell script
+pip install git+https://github.com/niall-twomey/recommender_metrics.git@master
+```
+
+
+
 ## Basic examples 
 
 The examples below demonstrate how it can be used: 
@@ -96,4 +116,3 @@ dtype: float64
 By default the `calculate_metrics_from_dataframe` function requires that the input dataframe has columns `group_id`, 
 `label` and `score`. However, these can be specified with the optional `group_col`, `label_col` and `score_col` 
 arguments. 
-
