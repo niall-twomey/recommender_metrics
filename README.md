@@ -116,3 +116,74 @@ dtype: float64
 By default the `calculate_metrics_from_dataframe` function requires that the input dataframe has columns `group_id`, 
 `label` and `score`. However, these can be specified with the optional `group_col`, `label_col` and `score_col` 
 arguments. 
+
+## Multiprocessing 
+
+A super basic multiprocessing wrapper around this code has been done. This can simply be acquired by setting the 
+`n_threads` argument in the main evaluation functions to a value larger than 1. The following code snipped illustrates 
+a comparison between the two approaches 
+
+```python
+ 
+from recommender_metrics import random_data, calculate_metrics_from_dataframe
+from datetime import datetime
+
+def single_multi_thread_test(df, n_threads=5):
+    print(f'Dataframe shape={df.shape} with {df.group_id.nunique()} unique groups\n')
+
+    start = datetime.now()
+    _, single = calculate_metrics_from_dataframe(df)
+    print(f'Single-threaded timing ({datetime.now() - start})')
+
+    start = datetime.now()
+    _, multi = calculate_metrics_from_dataframe(df, n_threads=n_threads)
+    print(f'Multi-threaded timing ({datetime.now() - start})')
+
+    print(f'All the same: {(single == multi).all()}')
+    print()
+
+single_multi_thread_test(random_data.predefined_data())
+single_multi_thread_test(random_data.generate_random_data())
+single_multi_thread_test(random_data.generate_random_data(
+    n_users=1000,
+    n_items=10000,
+    n_interactions_per_user=100,
+))
+
+```
+
+And on my laptop I get the following outputs
+
+```
+Dataframe shape=(20, 5) with 1 unique groups
+
+Calculating performance metrics over group_id: 100%|██████████| 1/1 [00:00<00:00, 112.02it/s]
+Single-threaded timing (0:00:00.020167)
+Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 953.68it/s]
+Computing metrics: 100%|██████████| 4/4 [00:00<00:00, 291.27it/s]
+Multi-threaded timing (0:00:00.133939)
+All the same: True
+
+Dataframe shape=(255, 5) with 20 unique groups
+Calculating performance metrics over group_id: 100%|██████████| 20/20 [00:00<00:00, 111.66it/s]
+Constructing arguments:   0%|          | 0/4 [00:00<?, ?it/s]
+Single-threaded timing (0:00:00.201712)
+Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 434.98it/s]
+Computing metrics: 100%|██████████| 80/80 [00:00<00:00, 358.48it/s]
+Multi-threaded timing (0:00:00.364281)
+All the same: True
+
+Dataframe shape=(49615, 5) with 1000 unique groups
+Calculating performance metrics over group_id: 100%|██████████| 1000/1000 [00:08<00:00, 124.09it/s]
+Single-threaded timing (0:00:08.639233)
+Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 29.59it/s]
+Computing metrics: 100%|██████████| 4000/4000 [00:02<00:00, 1961.20it/s]
+Multi-threaded timing (0:00:02.747941)
+All the same: True
+```
+
+The takeaway message from this is that when the data is small (the first two examples) the single threaded version 
+is actually more efficient (although the loss in efficienc won't be noticable). I presume this is due to the setup 
+that the multiprocessing library needs to do before joining the pools. In contrast, when the size of the groups grows
+the gains of multiprocessing are much clearer; concretely evaluation takes 2.75 seconds rather than 8.6 seconds.  
+
