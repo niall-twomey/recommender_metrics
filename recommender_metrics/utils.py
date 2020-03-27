@@ -1,5 +1,8 @@
+from tqdm import tqdm
+
 __all__ = [
-    'rank_dataframe'
+    'rank_dataframe',
+    'verbose_iterator',
 ]
 
 
@@ -58,14 +61,14 @@ def rank_dataframe(
     ranked_col = f'{score_col}_ranked'
 
     # pd.Series.rank orders from 1; this variable allows the ranks to be 0-indexed
-    sub = 1 if from_zero else 0
+    from_zero = 1 if from_zero else 0
 
     ranked_df = df.assign(**{
         ranked_col: df.groupby(group_col)[score_col].apply(
             lambda score: score.rank(
                 method='first',  # How to manage ties in scores
                 ascending=ascending  # Whether larger scores are better
-            ).astype(int) - sub
+            ).astype(int) - from_zero
         )
     })
 
@@ -75,3 +78,9 @@ def rank_dataframe(
         )
 
     return ranked_df, ranked_col
+
+
+def verbose_iterator(iterator, total=None, desc=None, verbose=True):
+    if verbose:
+        return tqdm(iterator, total=total, desc=desc)
+    return iterator

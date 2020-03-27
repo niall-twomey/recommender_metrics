@@ -1,7 +1,8 @@
 import pandas as pd
 from recommender_metrics import utils
 from sklearn import metrics
-from tqdm import tqdm
+
+from recommender_metrics.utils import verbose_iterator
 
 __all__ = [
     'calculate_metrics_from_dataframe',
@@ -53,10 +54,14 @@ def ndcg(df, df_at_k, score_col, label_col, ranked_col):
 METRIC_FUNCTIONS = dict(
     mAP=average_precision,
     precison=precision,
-    reccall=recall,
+    recall=recall,
     auroc=auroc,
     ndcg=ndcg,
 )
+
+DEFAULT_METRICS = [
+    'mAP', 'precison', 'recall'
+]
 
 
 def calculate_metrics_from_dataframe(
@@ -67,6 +72,7 @@ def calculate_metrics_from_dataframe(
         label_col='label',
         score_col='score',
         metrics=None,
+        verbose=True,
 ):
     """
     This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
@@ -125,6 +131,10 @@ def calculate_metrics_from_dataframe(
         number of possible. For example, if a search returns 100 items, and out of this 50 are
         relevant, the denominator of recall@20 will be 50.
 
+    verbose : bool; optional (default=True)
+        This specifies the verbosity level. If set to `True` the tqdm library will be invoked
+        to siaplay a progress bar across the outermost grouping iterator.
+
     Returns
     -------
     results : pandas Dataframe
@@ -151,8 +161,8 @@ def calculate_metrics_from_dataframe(
 
     # Do basic validation on the dictionary of metrics
     if metrics is None:
-        metrics = METRIC_FUNCTIONS.copy()
-    elif isinstance(metrics, list) and all(map(lambda mm: isinstance(mm, str), metrics)):
+        metrics = DEFAULT_METRICS.copy()
+    if isinstance(metrics, list) and all(map(lambda mm: isinstance(mm, str), metrics)):
         metrics = {
             mm: METRIC_FUNCTIONS[mm] for mm in metrics
         }
@@ -175,11 +185,9 @@ def calculate_metrics_from_dataframe(
     results_list = list()
     k_list = sorted(k_list)
 
-    keys = [group_col]
-
     # Iterate over groups
-    for group_id, sorted_ranked_group in tqdm(
-            df_ranked_sorted.groupby(group_col),
+    for group_id, sorted_ranked_group in verbose_iterator(
+            df_ranked_sorted.groupby(group_col), verbose=verbose,
             desc=f'Calculating performance metrics over {group_col}'
     ):
         res = {group_col: group_id}
@@ -188,9 +196,9 @@ def calculate_metrics_from_dataframe(
         for k in k_list:
             # Slice the dataframe for ranks less or k (equality test since
             # the dataframe is indexed from 1; see `from_zero` field above)
-            sorted_ranked_group_at_k = sorted_ranked_group.loc[
-                df_ranked_sorted[ranked_col] <= k
-                ]
+            sorted_ranked_group_at_k = sorted_ranked_group.loc[(
+                    df_ranked_sorted[ranked_col] <= k
+            )]
 
             # Evaluate the metrics, and specify the k value in the keys
             for key, func in metrics.items():
@@ -206,7 +214,7 @@ def calculate_metrics_from_dataframe(
 
     # Prepare the results dataframe
     results = pd.DataFrame(results_list)
-    results.set_index(keys, drop=True, inplace=True)
+    results.set_index(group_col, drop=True, inplace=True)
     results_mean = results.mean()
 
     return results, results_mean
@@ -218,7 +226,8 @@ def calculate_metrics(
         labels,
         k_list=None,
         ascending=False,
-        metrics=None
+        metrics=None,
+        verbose=True,
 ):
     """
     This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
@@ -273,6 +282,10 @@ def calculate_metrics(
         number of possible. For example, if a search returns 100 items, and out of this 50 are
         relevant, the denominator of recall@20 will be 50.
 
+    verbose : bool; optional (default=True)
+        This specifies the verbosity level. If set to `True` the tqdm library will be invoked
+        to siaplay a progress bar across the outermost grouping iterator.
+
     Returns
     -------
     results : pandas Dataframe
@@ -302,10 +315,11 @@ def calculate_metrics(
         score_col='score',
         label_col='label',
         metrics=metrics,
+        verbose=verbose,
     )
 
 
-def main():
+if __name__ == '__main__':
     pd.set_option('display.max_rows', 500)
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 1000)
@@ -317,7 +331,3 @@ def main():
 
     full_results, mean_results = calculate_metrics_from_dataframe(random_data.generate_random_data())
     print(mean_results)
-
-
-if __name__ == '__main__':
-    main()
