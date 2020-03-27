@@ -52,7 +52,7 @@ def _test_gh_data():
 
     # Print the instances GH's and my metrics disagree
     for session_no, met in mets.iterrows():
-        me, gh = met['mAP_at_20'], ghd[session_no]
+        me, gh = met['mAP@20'], ghd[session_no]
         if not np.isclose(me, gh):
             print(f'session={session_no} nt={me:.5f} gh={gh:.5f}')
 
