@@ -1,8 +1,7 @@
 import pandas as pd
-from recommender_metrics import utils
 from sklearn import metrics
 
-from recommender_metrics.utils import verbose_iterator
+from recommender_metrics.utils import rank_dataframe, verbose_iterator
 
 __all__ = [
     'calculate_metrics_from_dataframe',
@@ -173,7 +172,7 @@ def calculate_metrics_from_dataframe(
         )
 
     # Rank the dataframe, and also sort by the group rank
-    df_ranked_sorted, ranked_col = utils.rank_dataframe(
+    df_ranked_sorted, ranked_col = rank_dataframe(
         df=df,
         ascending=ascending,
         from_zero=False,
