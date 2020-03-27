@@ -63,6 +63,29 @@ DEFAULT_METRICS = [
 ]
 
 
+def validate_k_list(k_list):
+    if k_list is None:
+        return [1, 5, 10, 20]
+    elif isinstance(k_list, int):
+        assert k_list > 0
+        return [k_list]
+    elif isinstance(k_list, list):
+        assert all(map(lambda kk: isinstance(kk, int) and kk > 0, k_list))
+        return k_list
+    raise ValueError
+
+
+def validate_metrics(metrics):
+    if metrics is None:
+        metrics = DEFAULT_METRICS.copy()
+    if isinstance(metrics, list) and all(map(lambda mm: isinstance(mm, str), metrics)):
+        metrics = {mm: METRIC_FUNCTIONS[mm] for mm in metrics}
+    assert isinstance(metrics, dict)
+    if not all(map(callable, metrics.values())):
+        raise TypeError(f'All metrics passed into this function must be callable')
+    return metrics
+
+
 def calculate_metrics_from_dataframe(
         df,
         k_list=None,
@@ -147,29 +170,9 @@ def calculate_metrics_from_dataframe(
     assert score_col in df, f'The column {score_col} must be in the dataframe ({df.columns})'
     assert label_col in df, f'The column {label_col} must be in the dataframe ({df.columns})'
 
-    # Do basic validation on the list of k values
-    if k_list is None:
-        k_list = [1, 5, 10, 20]
-    elif isinstance(k_list, int):
-        assert k_list > 0
-        k_list = [k_list]
-    elif isinstance(k_list, list):
-        assert all(map(lambda kk: isinstance(kk, int) and k > 0, k_list))
-    else:
-        raise ValueError
-
-    # Do basic validation on the dictionary of metrics
-    if metrics is None:
-        metrics = DEFAULT_METRICS.copy()
-    if isinstance(metrics, list) and all(map(lambda mm: isinstance(mm, str), metrics)):
-        metrics = {
-            mm: METRIC_FUNCTIONS[mm] for mm in metrics
-        }
-    assert isinstance(metrics, dict)
-    if not all(map(callable, metrics.values())):
-        raise TypeError(
-            f'All metrics passed into this function must be callable'
-        )
+    # Do basic validation
+    k_list = validate_k_list(k_list)
+    metrics = validate_metrics(metrics)
 
     # Rank the dataframe, and also sort by the group rank
     df_ranked_sorted, ranked_col = rank_dataframe(
