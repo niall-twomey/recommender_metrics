@@ -37,6 +37,40 @@ pip install git+https://github.com/niall-twomey/recommender_metrics.git@master
 The examples below demonstrate how it can be used: 
 
 ```python
+from recommender_metrics import calculate_metrics
+import numpy as np
+
+metrics, metrics_averaged = calculate_metrics(
+    group_ids=np.random.randint(0, 10, 100),
+    scores=np.random.normal(0, 1, 100),
+    labels=np.random.rand(100) > 0.8
+)
+
+print(metrics_averaged)
+```
+
+Which gives the following output: 
+
+```
+Calculating performance metrics over group_id: 100%|██████████| 10/10 [00:00<00:00, 109.78it/s]
+mAP@1          0.200000
+precison@1     0.200000
+recall@1       0.400000
+mAP@5          0.253333
+precison@5     0.080000
+recall@5       0.520000
+mAP@10         0.297619
+precison@10    0.115397
+recall@10      0.900000
+mAP@20         0.306710
+precison@20    0.115137
+recall@20      1.000000
+dtype: float64
+```
+
+Some pre-defined data can be evaluated as follows 
+
+```python
 from recommender_metrics import calculate_metrics 
 from recommender_metrics import generate_random_data 
 import json 
