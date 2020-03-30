@@ -39,20 +39,20 @@ The examples below demonstrate how it can be used:
 ```python
 from recommender_metrics import calculate_metrics 
 from recommender_metrics import generate_random_data 
+import json 
 
 data = generate_random_data()
 print('Data')
 print(data.head())
 print()
 
-metrics, metrics_averaged = calculate_metrics(
+metrics = calculate_metrics(
     group_ids=data['group_id'], 
     scores=data['score'], 
     labels=data['label']
 )
 print('Metrics:')
-print(metrics_averaged)
-print()
+print(json.dumps(metrics, indent=2))
 ```
 
 This should print outputs like these below following:
@@ -60,28 +60,27 @@ This should print outputs like these below following:
 ```
 Data
    group_id  user_id  item_id     score  label
-0         0        0       83  1.056970      0
-1         0        0       38 -0.590180      0
-2         0        0       53 -0.387864      0
-3         0        0       76 -0.046539      0
-4         0        0       24  0.515387      1
-
-Calculating performance metrics over group_id: 100%|██████████████| 20/20 [00:00<00:00, 100.95it]
-
+0         0        0       14  0.007491      1
+1         0        0       74  0.034926      0
+2         0        0       12  0.766481      0
+3         0        0        3  0.986688      0
+4         0        0       82  0.623281      0
+Calculating performance metrics over group_id: 100%|██████████| 20/20 [00:00<00:00, 97.07it/s]
 Metrics:
-mAP@1          0.050000
-precison@1     0.050000
-recall@1       0.062500
-mAP@5          0.297361
-precison@5     0.225000
-recall@5       0.463333
-mAP@10         0.327321
-precison@10    0.210992
-recall@10      0.788333
-mAP@20         0.309007
-precison@20    0.226823
-recall@20      1.000000
-dtype: float64
+{
+  "mAP@1": 0.35,
+  "precison@1": 0.35,
+  "recall@1": 0.12380952380952381,
+  "mAP@5": 0.5009722222222222,
+  "precison@5": 0.2800000000000001,
+  "recall@5": 0.43892857142857145,
+  "mAP@10": 0.45625,
+  "precison@10": 0.2656547619047619,
+  "recall@10": 0.7352380952380952,
+  "mAP@20": 0.43771204652167156,
+  "precison@20": 0.2812859012762263,
+  "recall@20": 1.0
+}
 ```
 
 Note, that in this case the `group_id` columns is an integer, but in reality it can be any hashable type (e.g. tuple). 
@@ -92,25 +91,26 @@ The metrics can be calculated directly from a dataframe as follows:
 from recommender_metrics import calculate_metrics_from_dataframe 
 from recommender_metrics import generate_random_data 
 data = generate_random_data()
-print(calculate_metrics_from_dataframe(data))
+print(json.dumps(calculate_metrics_from_dataframe(data), indent=2))
 ```
 
 which will output the same metrics: 
 
 ```
-mAP@1          0.050000
-precison@1     0.050000
-recall@1       0.062500
-mAP@5          0.297361
-precison@5     0.225000
-recall@5       0.463333
-mAP@10         0.327321
-precison@10    0.210992
-recall@10      0.788333
-mAP@20         0.309007
-precison@20    0.226823
-recall@20      1.000000
-dtype: float64
+{
+  "mAP@1": 0.35,
+  "precison@1": 0.35,
+  "recall@1": 0.12380952380952381,
+  "mAP@5": 0.5009722222222222,
+  "precison@5": 0.2800000000000001,
+  "recall@5": 0.43892857142857145,
+  "mAP@10": 0.45625,
+  "precison@10": 0.2656547619047619,
+  "recall@10": 0.7352380952380952,
+  "mAP@20": 0.43771204652167156,
+  "precison@20": 0.2812859012762263,
+  "recall@20": 1.0
+}
 ```
 
 By default the `calculate_metrics_from_dataframe` function requires that the input dataframe has columns `group_id`, 
@@ -124,23 +124,24 @@ A super basic multiprocessing wrapper around this code has been done. This can s
 a comparison between the two approaches 
 
 ```python
- 
 from recommender_metrics import random_data, calculate_metrics_from_dataframe
 from datetime import datetime
 
+
 def single_multi_thread_test(df, n_threads=5):
-    print(f'Dataframe shape={df.shape} with {df.group_id.nunique()} unique groups\n')
+    print(f'Dataframe shape={df.shape} with {df.group_id.nunique()} unique groups')
 
     start = datetime.now()
-    _, single = calculate_metrics_from_dataframe(df)
-    print(f'Single-threaded timing ({datetime.now() - start})')
+    single = calculate_metrics_from_dataframe(df)
+    print(f'TIME FOR SINGLE THREAD ({datetime.now() - start})')
 
     start = datetime.now()
-    _, multi = calculate_metrics_from_dataframe(df, n_threads=n_threads)
-    print(f'Multi-threaded timing ({datetime.now() - start})')
+    multi = calculate_metrics_from_dataframe(df, n_threads=n_threads)
+    print(f'TIME FOR {n_threads} THREADS ({datetime.now() - start})')
 
-    print(f'All the same: {(single == multi).all()}')
+    print(f'All the same: {(single.items() == multi.items())}')
     print()
+
 
 single_multi_thread_test(random_data.predefined_data())
 single_multi_thread_test(random_data.generate_random_data())
@@ -149,36 +150,32 @@ single_multi_thread_test(random_data.generate_random_data(
     n_items=10000,
     n_interactions_per_user=100,
 ))
-
 ```
 
 And on my laptop I get the following outputs
 
 ```
-Dataframe shape=(20, 5) with 1 unique groups
-
-Calculating performance metrics over group_id: 100%|██████████| 1/1 [00:00<00:00, 112.02it/s]
-Single-threaded timing (0:00:00.020167)
-Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 953.68it/s]
-Computing metrics: 100%|██████████| 4/4 [00:00<00:00, 291.27it/s]
-Multi-threaded timing (0:00:00.133939)
+Calculating performance metrics over group_id: 100%|██████████| 1/1 [00:00<00:00, 110.72it/s]
+Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 1027.51it/s]
+TIME FOR SINGLE THREAD (0:00:00.020452)
+Computing metrics: 100%|██████████| 4/4 [00:00<00:00, 286.79it/s]
+TIME FOR 5 THREADS (0:00:00.130910)
 All the same: True
 
 Dataframe shape=(255, 5) with 20 unique groups
-Calculating performance metrics over group_id: 100%|██████████| 20/20 [00:00<00:00, 111.66it/s]
-Constructing arguments:   0%|          | 0/4 [00:00<?, ?it/s]
-Single-threaded timing (0:00:00.201712)
-Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 434.98it/s]
-Computing metrics: 100%|██████████| 80/80 [00:00<00:00, 358.48it/s]
-Multi-threaded timing (0:00:00.364281)
+Calculating performance metrics over group_id: 100%|██████████| 20/20 [00:00<00:00, 116.21it/s]
+TIME FOR SINGLE THREAD (0:00:00.192167)
+Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 573.62it/s]
+Computing metrics: 100%|██████████| 80/80 [00:00<00:00, 468.03it/s]
+TIME FOR 5 THREADS (0:00:00.246602)
 All the same: True
 
 Dataframe shape=(49615, 5) with 1000 unique groups
-Calculating performance metrics over group_id: 100%|██████████| 1000/1000 [00:08<00:00, 124.09it/s]
-Single-threaded timing (0:00:08.639233)
-Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 29.59it/s]
-Computing metrics: 100%|██████████| 4000/4000 [00:02<00:00, 1961.20it/s]
-Multi-threaded timing (0:00:02.747941)
+Calculating performance metrics over group_id: 100%|██████████| 1000/1000 [00:08<00:00, 119.20it/s]
+TIME FOR SINGLE THREAD (0:00:08.947291)
+Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 28.59it/s]
+Computing metrics: 100%|██████████| 4000/4000 [00:02<00:00, 1827.97it/s]
+TIME FOR 5 THREADS (0:00:02.983843)
 All the same: True
 ```
 

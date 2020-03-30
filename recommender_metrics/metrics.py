@@ -206,6 +206,7 @@ def calculate_metrics_from_dataframe(
         score_col='score',
         metrics=None,
         verbose=True,
+        reduce=True,
         n_threads=1,
 ):
     """
@@ -269,16 +270,20 @@ def calculate_metrics_from_dataframe(
         This specifies the verbosity level. If set to `True` the tqdm library will be invoked
         to siaplay a progress bar across the outermost grouping iterator.
 
+    reduce : bool, optional (default=True)
+        This argument determines whether to return the (arrhythmic) mean of the scores across
+        the groups.
+
     n_threads : int; optional (default=1)
         This argument specifies the number of threads that this computation is done.
 
     Returns
     -------
-    results : pandas Dataframe
-        A dataframe containing the performance metrics (as columns) computed across each group (row)
-
-    results_mean : pandas Dataframe
-        A dataframe of the metrics averaged across the groups.
+    results : dict or pandas.DataFrame
+        If `reduce=True` a dictionary of metric name / metric result measures is returned. These
+            are the results of averaging across `group_id`.
+        If `reduce=False` a pandas.DataFrame is returned. The rows of this are the groups and the
+            values are the results of the various specified metrics.
     """
 
     assert group_col in df, f'The column {group_col} must be in the dataframe ({df.columns})'
@@ -326,10 +331,9 @@ def calculate_metrics_from_dataframe(
             n_threads=n_threads,
         )
 
-    # Prepare the results dataframe
-    results_mean = results.mean()
-
-    return results, results_mean
+    if reduce:
+        return results.mean().to_dict()
+    return results
 
 
 def calculate_metrics(
@@ -340,6 +344,7 @@ def calculate_metrics(
         ascending=False,
         metrics=None,
         verbose=True,
+        reduce=True,
         n_threads=1,
 ):
     """
@@ -399,16 +404,20 @@ def calculate_metrics(
         This specifies the verbosity level. If set to `True` the tqdm library will be invoked
         to siaplay a progress bar across the outermost grouping iterator.
 
+    reduce : bool, optional (default=True)
+        This argument determines whether to return the (arrhythmic) mean of the scores across
+        the groups.
+
     n_threads : int; optional (default=1)
         This argument specifies the number of threads that this computation is done.
 
     Returns
     -------
-    results : pandas Dataframe
-        A dataframe containing the performance metrics (as columns) computed across each group (row)
-
-    results_mean : pandas Dataframe
-        A dataframe of the metrics averaged across the groups.
+    results : dict or pandas.DataFrame
+        If `reduce=True` a dictionary of metric name / metric result measures is returned. These
+            are the results of averaging across `group_id`.
+        If `reduce=False` a pandas.DataFrame is returned. The rows of this are the groups and the
+            values are the results of the various specified metrics.
     """
 
     if len(set(map(len, [group_ids, scores, labels]))) != 1:
@@ -432,6 +441,7 @@ def calculate_metrics(
         label_col='label',
         metrics=metrics,
         verbose=verbose,
+        reduce=reduce,
         n_threads=n_threads,
     )
 
@@ -441,22 +451,24 @@ if __name__ == '__main__':
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 1000)
 
-    from recommender_metrics import random_data
+    from recommender_metrics import random_data, calculate_metrics_from_dataframe
     from datetime import datetime
 
+
     def single_multi_thread_test(df, n_threads=5):
-        print(f'Dataframe shape={df.shape} with {df.group_id.nunique()} unique groups\n')
+        print(f'Dataframe shape={df.shape} with {df.group_id.nunique()} unique groups')
 
         start = datetime.now()
-        _, single = calculate_metrics_from_dataframe(df)
-        print(f'Single-threaded timing ({datetime.now() - start})')
+        single = calculate_metrics_from_dataframe(df)
+        print(f'TIME FOR SINGLE THREAD ({datetime.now() - start})')
 
         start = datetime.now()
-        _, multi = calculate_metrics_from_dataframe(df, n_threads=n_threads)
-        print(f'Multi-threaded timing ({datetime.now() - start})')
+        multi = calculate_metrics_from_dataframe(df, n_threads=n_threads)
+        print(f'TIME FOR {n_threads} THREADS ({datetime.now() - start})')
 
-        print(f'All the same: {(single == multi).all()}')
+        print(f'All the same: {(single.items() == multi.items())}')
         print()
+
 
     single_multi_thread_test(random_data.predefined_data())
     single_multi_thread_test(random_data.generate_random_data())
@@ -464,9 +476,4 @@ if __name__ == '__main__':
         n_users=1000,
         n_items=10000,
         n_interactions_per_user=100,
-    ))
-    single_multi_thread_test(random_data.generate_random_data(
-        n_users=1000,
-        n_items=10000,
-        n_interactions_per_user=300,
     ))
