@@ -53,7 +53,7 @@ def ndcg(df, df_at_k, score_col, label_col, ranked_col):
 
 METRIC_FUNCTIONS = dict(
     mAP=average_precision,
-    precison=precision,
+    precision=precision,
     recall=recall,
     auroc=auroc,
     ndcg=ndcg,
