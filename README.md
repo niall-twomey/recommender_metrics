@@ -39,6 +39,7 @@ The examples below demonstrate how it can be used:
 ```python
 from recommender_metrics import calculate_metrics
 import numpy as np
+import json 
 
 metrics, metrics_averaged = calculate_metrics(
     group_ids=np.random.randint(0, 10, 100),
@@ -46,26 +47,27 @@ metrics, metrics_averaged = calculate_metrics(
     labels=np.random.rand(100) > 0.8
 )
 
-print(metrics_averaged)
+print(json.dumps(metrics_averaged, indent=2))
 ```
 
 Which gives the following output: 
 
 ```
-Calculating performance metrics over group_id: 100%|██████████| 10/10 [00:00<00:00, 109.78it/s]
-mAP@1          0.200000
-precison@1     0.200000
-recall@1       0.400000
-mAP@5          0.253333
-precison@5     0.080000
-recall@5       0.520000
-mAP@10         0.297619
-precison@10    0.115397
-recall@10      0.900000
-mAP@20         0.306710
-precison@20    0.115137
-recall@20      1.000000
-dtype: float64
+Calculating performance metrics over group_id: 100%|██████████| 10/10 [00:00<00:00, 89.70it/s]
+{
+  "mAP@1": 0.2,
+  "precison@1": 0.2,
+  "recall@1": 0.18333333333333332,
+  "mAP@5": 0.44833333333333336,
+  "precison@5": 0.2,
+  "recall@5": 0.7166666666666666,
+  "mAP@10": 0.41158730158730156,
+  "precison@10": 0.1577777777777778,
+  "recall@10": 0.8583333333333332,
+  "mAP@20": 0.38844530469530475,
+  "precison@20": 0.17391414141414144,
+  "recall@20": 1.0
+}
 ```
 
 Some pre-defined data can be evaluated as follows 
