@@ -60,7 +60,7 @@ METRIC_FUNCTIONS = dict(
 )
 
 DEFAULT_METRICS = [
-    'mAP', 'precison', 'recall'
+    'mAP', 'precision', 'recall'
 ]
 
 
