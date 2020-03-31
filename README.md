@@ -126,6 +126,7 @@ The metrics can be calculated directly from a dataframe as follows:
 ```python
 from recommender_metrics import calculate_metrics_from_dataframe 
 from recommender_metrics import generate_random_data 
+import json 
 data = generate_random_data()
 print(json.dumps(calculate_metrics_from_dataframe(data), indent=2))
 ```

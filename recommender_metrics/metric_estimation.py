@@ -1,0 +1,466 @@
+import pandas as pd
+from multiprocessing import Pool
+
+from recommender_metrics.utils import rank_dataframe, verbose_iterator
+from recommender_metrics.metrics import DEFAULT_METRICS, METRIC_FUNCTIONS
+
+__all__ = [
+    'calculate_metrics_from_dataframe',
+    'calculate_metrics',
+]
+
+
+def validate_k_list(k_list):
+    if k_list is None:
+        return [1, 5, 10, 20]
+    elif isinstance(k_list, int):
+        assert k_list > 0
+        return [k_list]
+    elif isinstance(k_list, list):
+        assert all(map(lambda kk: isinstance(kk, int) and kk > 0, k_list))
+        return k_list
+    raise ValueError
+
+
+def validate_metrics(metrics):
+    if metrics is None:
+        metrics = DEFAULT_METRICS.copy()
+    if isinstance(metrics, list) and all(map(lambda mm: isinstance(mm, str), metrics)):
+        metrics = {mm: METRIC_FUNCTIONS[mm] for mm in metrics}
+    assert isinstance(metrics, dict)
+    if not all(map(callable, metrics.values())):
+        raise TypeError(f'All metrics passed into this function must be callable')
+    return metrics
+
+
+def _evaluate_performance_single_thread(df_ranked_sorted, k_list, metrics, group_col, label_col, score_col, ranked_col,
+                                        verbose):
+    results_list = list()
+
+    # Iterate over groups
+    for group_id, sorted_ranked_group in verbose_iterator(
+            df_ranked_sorted.groupby(group_col), verbose=verbose,
+            desc=f'Calculating performance metrics over {group_col}'
+    ):
+        res = {group_col: group_id}
+
+        # Iterate over the list of k values
+        for k in k_list:
+            # Slice the dataframe for ranks less or k (equality test since
+            # the dataframe is indexed from 1; see `from_zero` field above)
+            sorted_ranked_group_at_k = sorted_ranked_group.loc[(
+                    df_ranked_sorted[ranked_col] <= k
+            )]
+
+            # Evaluate the metrics, and specify the k value in the keys
+            for key, func in metrics.items():
+                res[f'{key}@{k}'] = func(
+                    df=sorted_ranked_group,
+                    df_at_k=sorted_ranked_group_at_k,
+                    score_col=score_col,
+                    ranked_col=ranked_col,
+                    label_col=label_col,
+                )
+
+        results_list.append(res)
+
+    results = pd.DataFrame(results_list)
+    results.set_index(group_col, drop=True, inplace=True)
+
+    return results
+
+
+def _evaluate_performance_multi_thread_impl(args):
+    (group_id, df_full, metrics, group_inds, group_at_k_inds, k,
+     group_col, score_col, label_col, ranked_col) = args
+
+    df = df_full.loc[group_inds]
+    df_at_k = df_full.loc[group_at_k_inds]
+
+    return {
+        group_col: group_id,
+        **{
+            f'{func_name}@{k}': func(
+                df=df,
+                df_at_k=df_at_k,
+                score_col=score_col,
+                label_col=label_col,
+                ranked_col=ranked_col,
+            ) for func_name, func in metrics.items()
+        }
+    }
+
+
+def _evaluate_performance_multi_thread(df_ranked_sorted, k_list, metrics, group_col, label_col, score_col, ranked_col,
+                                       verbose, n_threads):
+    # Aggregate over group IDs
+    groups = df_ranked_sorted.groupby(group_col).groups
+
+    arguments = []
+    for k in verbose_iterator(
+            k_list,
+            desc=f'Constructing arguments',
+            total=len(k_list),
+            verbose=verbose,
+    ):
+        # Slice each group by <= k
+        groups_at_k = df_ranked_sorted.loc[(
+                df_ranked_sorted[ranked_col] <= k
+        )].groupby(group_col).groups
+
+        arguments += [(
+            group_id,
+            df_ranked_sorted,
+            metrics,
+            groups[group_id],
+            groups_at_k[group_id],
+            k,
+            group_col,
+            score_col,
+            label_col,
+            ranked_col
+        ) for group_id in groups.keys()]
+
+    # Initiate the multiprocessing pool, and run
+    pool = Pool(processes=n_threads)
+    results_list = list(verbose_iterator(
+        iterator=pool.imap(
+            func=_evaluate_performance_multi_thread_impl,
+            iterable=arguments,
+            chunksize=100
+        ),
+        total=len(arguments),
+        desc=f'Computing metrics',
+        verbose=verbose
+    ))
+    pool.close()
+    pool.join()
+
+    return pd.DataFrame(
+        results_list
+    ).groupby(
+        group_col
+    ).max()
+
+
+def calculate_metrics_from_dataframe(
+        df,
+        k_list=None,
+        ascending=False,
+        group_col='group_id',
+        label_col='label',
+        score_col='score',
+        metrics=None,
+        verbose=True,
+        reduce=True,
+        n_threads=1,
+):
+    """
+    This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
+    configurable, by default the mean average precision at k (mAP@k), precision at k (precision@k)
+    and recall at k (recall@k) are calculated for k in [1, 5, 10 and 20]. Performance is evaluated
+    by first grouping by `group_col`, ranking by `score_col`, and evaluating the derived rank order
+    for each group against `label_col`. The level at which these parameters are set can be
+    controlled by setting the `k_list` parameter, which may be a positive integer, or a list of
+    positiive integers.
+
+    If the data in `score_col` is given by a model, it's likely that `ascending` argument should
+    be set to `True`. If the `score_col` data comes from a search order position it should be
+    set to `False`.
+
+    Parameters
+    ----------
+    df : pandas dataframe
+        This argument specifies the data that is to be scored. Only three columns are required,
+        and these are given by the `group_col`, `label_col` and `score_col` arguments.
+
+    k_list : int, list(int); optional (default=None)
+        This specifies the level to which the performance metrics are calculated (e.g. mAP@20).
+        This argument can specify one value of k (`k_list=20`), a list of parameters
+        (`k_list=[1, 2, 4, 8]`), or it can revert to the default (`k_list=None`) wherein the
+        values [1, 5, 10, 20] are used.
+
+    ascending : bool; optional (default=False)
+        This argument specifies whether the scores are ranked in ascending or descending order
+        (default is descending). For models that give higher scores for better user-item affinity,
+        ascending should be set to `False`, but if the data is generated from a search engine
+        (where lower positions are indicitive of a 'better' position), ascending should be set to
+        `True`.
+
+    group_col : str; optional (default='group_id')
+        This argument specifies the column of `df` over which groupings should be constructed.
+
+    label_col : str; optional (default='label')
+        This argument specifies the column of `df` that holds the ground truth labels.
+
+    score_col : str; optional (default='score')
+        This argument specifies the column of `df`
+
+    metrics : dict or None; optional (default=None)
+        The items of this dicionary specify the human-readable name of the metrics and a
+        callable function to evaluate these metrics. The function signature for each metric
+        must follow the following form:
+
+        >>> def my_metric_function(df, df_at_k, score_col, label_col, ranked_col):
+        >>>     pass
+
+        Here, `df` is a slice of a dataframe with three columns (`score_col`, `label_col` and
+        `ranked_col`) that is associated with a particular `group_id`, and `df_at_k` is a slice
+        of `df` for rank values less than `k`. The column name variables are given so that metric
+        is not tied to a particular schema. In general, these functions are for @k calculation.
+        However, some metrics (e.g. recall) require a larger set of items to define the total
+        number of possible. For example, if a search returns 100 items, and out of this 50 are
+        relevant, the denominator of recall@20 will be 50.
+
+    verbose : bool; optional (default=True)
+        This specifies the verbosity level. If set to `True` the tqdm library will be invoked
+        to siaplay a progress bar across the outermost grouping iterator.
+
+    reduce : bool, optional (default=True)
+        This argument determines whether to return the (arrhythmic) mean of the scores across
+        the groups.
+
+    n_threads : int; optional (default=1)
+        This argument specifies the number of threads that this computation is done.
+
+    Returns
+    -------
+    results : dict or pandas.DataFrame
+        If `reduce=True` a dictionary of metric name / metric result measures is returned. These
+            are the results of averaging across `group_id`.
+        If `reduce=False` a pandas.DataFrame is returned. The rows of this are the groups and the
+            values are the results of the various specified metrics.
+    """
+
+    assert group_col in df, f'The column {group_col} must be in the dataframe ({df.columns})'
+    assert score_col in df, f'The column {score_col} must be in the dataframe ({df.columns})'
+    assert label_col in df, f'The column {label_col} must be in the dataframe ({df.columns})'
+
+    assert isinstance(n_threads, int) and n_threads > 0
+
+    # Do basic validation
+    k_list = validate_k_list(k_list)
+    metrics = validate_metrics(metrics)
+
+    # Rank the dataframe, and also sort by the group rank
+    df_ranked_sorted, ranked_col = rank_dataframe(
+        df=df,
+        ascending=ascending,
+        from_zero=False,
+        sort_group_rank=True,
+        group_col=group_col,
+        score_col=score_col,
+    )
+
+    #  Calculate the results
+    if n_threads == 1:
+        results = _evaluate_performance_single_thread(
+            df_ranked_sorted=df_ranked_sorted,
+            k_list=k_list,
+            metrics=metrics,
+            group_col=group_col,
+            label_col=label_col,
+            score_col=score_col,
+            ranked_col=ranked_col,
+            verbose=verbose,
+        )
+    else:
+        results = _evaluate_performance_multi_thread(
+            df_ranked_sorted=df_ranked_sorted,
+            k_list=k_list,
+            metrics=metrics,
+            group_col=group_col,
+            label_col=label_col,
+            score_col=score_col,
+            ranked_col=ranked_col,
+            verbose=verbose,
+            n_threads=n_threads,
+        )
+
+    if reduce:
+        return results.mean().to_dict()
+    return results
+
+
+def calculate_metrics(
+        group_ids,
+        scores,
+        labels,
+        k_list=None,
+        ascending=False,
+        metrics=None,
+        verbose=True,
+        reduce=True,
+        n_threads=1,
+):
+    """
+    This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
+    configurable, by default the mean average precision at k (mAP@k), precision at k (precision@k)
+    and recall at k (recall@k) are calculated for k in [1, 5, 10 and 20]. Performance is evaluated
+    by first grouping by `group_col`, ranking by `score_col`, and evaluating the derived rank order
+    for each group against `label_col`. The level at which these parameters are set can be
+    controlled by setting the `k_list` parameter, which may be a positive integer, or a list of
+    positiive integers.
+
+    If the data in `score_col` is given by a model, it's likely that `ascending` argument should
+    be set to `True`. If the `score_col` data comes from a search order position it should be
+    set to `False`.
+
+    Parameters
+    ----------
+    group_ids : list, ndarray, pandas Series; length N
+        This array specifies the groups IDs over which the metrics are averaged
+
+    scores : list, ndarray, pandas Series; length N
+        This array specifies the scores that are used for evaluation
+
+    labels : list, ndarray, pandas Series; length N
+        This array specifies the ground truth labels that are used for evaluation.
+
+    k_list : int, list(int); optional (default=None)
+        This specifies the level to which the performance metrics are calculated (e.g. mAP@20).
+        This argument can specify one value of k (`k_list=20`), a list of parameters
+        (`k_list=[1, 2, 4, 8]`), or it can revert to the default (`k_list=None`) wherein the
+        values [1, 5, 10, 20] are used.
+
+    ascending : bool; optional (default=False)
+        This argument specifies whether the scores are ranked in ascending or descending order
+        (default is descending). For models that give higher scores for better user-item affinity,
+        ascending should be set to `False`, but if the data is generated from a search engine
+        (where lower positions are indicitive of a 'better' position), ascending should be set to
+        `True`.
+
+    metrics : dict or None; optional (default=None)
+        The items of this dicionary specify the human-readable name of the metrics and a
+        callable function to evaluate these metrics. The function signature for each metric
+        must follow the following form:
+
+        >>> def my_metric_function(df, df_at_k, score_col, label_col, ranked_col):
+        >>>     pass
+
+        Here, `df` is a slice of a dataframe with three columns (`score_col`, `label_col` and
+        `ranked_col`) that is associated with a particular `group_id`, and `df_at_k` is a slice
+        of `df` for rank values less than `k`. The column name variables are given so that metric
+        is not tied to a particular schema. In general, these functions are for @k calculation.
+        However, some metrics (e.g. recall) require a larger set of items to define the total
+        number of possible. For example, if a search returns 100 items, and out of this 50 are
+        relevant, the denominator of recall@20 will be 50.
+
+    verbose : bool; optional (default=True)
+        This specifies the verbosity level. If set to `True` the tqdm library will be invoked
+        to siaplay a progress bar across the outermost grouping iterator.
+
+    reduce : bool, optional (default=True)
+        This argument determines whether to return the (arrhythmic) mean of the scores across
+        the groups.
+
+    n_threads : int; optional (default=1)
+        This argument specifies the number of threads that this computation is done.
+
+    Returns
+    -------
+    results : dict or pandas.DataFrame
+        If `reduce=True` a dictionary of metric name / metric result measures is returned. These
+            are the results of averaging across `group_id`.
+        If `reduce=False` a pandas.DataFrame is returned. The rows of this are the groups and the
+            values are the results of the various specified metrics.
+    """
+
+    if len(set(map(len, [group_ids, scores, labels]))) != 1:
+        raise ValueError(
+            'All inputs to this function must be of the same length'
+        )
+
+    # Populate a new dataframe and invoke the previous function to calculate metrics
+    df = pd.DataFrame(dict(
+        group_id=group_ids,
+        score=scores,
+        label=labels,
+    ))
+
+    return calculate_metrics_from_dataframe(
+        df=df,
+        k_list=k_list,
+        ascending=ascending,
+        group_col='group_id',
+        score_col='score',
+        label_col='label',
+        metrics=metrics,
+        verbose=verbose,
+        reduce=reduce,
+        n_threads=n_threads,
+    )
+
+
+if __name__ == '__main__':
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
+
+    # First README example
+
+    from recommender_metrics import calculate_metrics
+    import numpy as np
+    import json
+
+    metrics = calculate_metrics(
+        group_ids=np.random.randint(0, 10, 100),
+        scores=np.random.normal(0, 1, 100),
+        labels=np.random.rand(100) > 0.8
+    )
+
+    print(json.dumps(metrics, indent=2))
+
+    # Second README example:
+    from recommender_metrics import calculate_metrics
+    from recommender_metrics import generate_random_data
+    import json
+
+    data = generate_random_data()
+    print('Data')
+    print(data.head())
+    print()
+
+    metrics = calculate_metrics(
+        group_ids=data['group_id'],
+        scores=data['score'],
+        labels=data['label']
+    )
+    print('Metrics:')
+    print(json.dumps(metrics, indent=2))
+
+    # Third README example:
+    from recommender_metrics import calculate_metrics_from_dataframe
+    from recommender_metrics import generate_random_data
+    import json
+
+    data = generate_random_data()
+    print(json.dumps(calculate_metrics_from_dataframe(data), indent=2))
+
+    # Fourth README example
+    from recommender_metrics import random_data, calculate_metrics_from_dataframe
+    from datetime import datetime
+
+
+    def single_multi_thread_test(df, n_threads=5):
+        print(f'Dataframe shape={df.shape} with {df.group_id.nunique()} unique groups')
+
+        start = datetime.now()
+        single = calculate_metrics_from_dataframe(df)
+        print(f'TIME FOR SINGLE THREAD ({datetime.now() - start})')
+
+        start = datetime.now()
+        multi = calculate_metrics_from_dataframe(df, n_threads=n_threads)
+        print(f'TIME FOR {n_threads} THREADS ({datetime.now() - start})')
+
+        print(f'All the same: {(single.items() == multi.items())}')
+        print()
+
+
+    single_multi_thread_test(random_data.predefined_data())
+    single_multi_thread_test(random_data.generate_random_data())
+    single_multi_thread_test(random_data.generate_random_data(
+        n_users=1000,
+        n_items=10000,
+        n_interactions_per_user=100,
+    ))

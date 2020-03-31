@@ -39,7 +39,7 @@ def rank_dataframe(
 
     sort_group_rank : bool, optional (default=True)
         Whether the dataframe should be re-ordered by the `group_col` and `ranked_col`. If
-        this function is being used for evaluating performance (as in from `./metrics.py`)
+        this function is being used for evaluating performance (as in from `./metric_estimation.py`)
         this parameter should be `True`
 
     from_zero : bool, optional (default=True)
