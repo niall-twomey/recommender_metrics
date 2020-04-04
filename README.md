@@ -39,33 +39,37 @@ The examples below demonstrate how it can be used:
 ```python
 from recommender_metrics import calculate_metrics
 import numpy as np
-import json 
+import json
 
-metrics, metrics_averaged = calculate_metrics(
-    group_ids=np.random.randint(0, 10, 100),
-    scores=np.random.normal(0, 1, 100),
-    labels=np.random.rand(100) > 0.8
+rng = np.random.RandomState(1234)
+metrics = calculate_metrics(
+    group_ids=rng.randint(0, 10, 100),
+    scores=rng.normal(0, 1, 100),
+    labels=rng.rand(100) > 0.8
 )
 
-print(json.dumps(metrics_averaged, indent=2))
+print(json.dumps(metrics, indent=2))
+print('\n\n\n')
 ```
 
 Which gives the following output: 
 
 ```
-Calculating performance metrics over group_id: 100%|██████████| 10/10 [00:00<00:00, 89.70it/s]
+Grouping data before evaluation: 100%|██████████| 10/10 [00:00<00:00, 66682.10it/s]
+Evaluating performance: 100%|██████████| 10/10 [00:00<00:00, 9756.46it/s]
+
 {
-  "mAP@1": 0.2,
-  "precison@1": 0.2,
-  "recall@1": 0.18333333333333332,
-  "mAP@5": 0.44833333333333336,
-  "precison@5": 0.2,
-  "recall@5": 0.7166666666666666,
-  "mAP@10": 0.41158730158730156,
-  "precison@10": 0.1577777777777778,
-  "recall@10": 0.8583333333333332,
-  "mAP@20": 0.38844530469530475,
-  "precison@20": 0.17391414141414144,
+  "mAP@1": 0.3,
+  "precision@1": 0.3,
+  "recall@1": 0.21666666666666665,
+  "mAP@5": 0.41500000000000004,
+  "precision@5": 0.18,
+  "recall@5": 0.5166666666666667,
+  "mAP@10": 0.35478174603174606,
+  "precision@10": 0.2088888888888889,
+  "recall@10": 0.9666666666666666,
+  "mAP@20": 0.35613756613756614,
+  "precision@20": 0.20297979797979798,
   "recall@20": 1.0
 }
 ```
@@ -79,24 +83,35 @@ from recommender_metrics import calculate_metrics
 from recommender_metrics import search_data
 import json
 
-data = search_data()
-print('Data')
-print(data.head())
+groups, positions, labels = search_data()
+print('Data:')
+print('     groups:', groups)
+print('  positions:', positions)
+print('     labels:', labels)
 print()
 
 metrics = calculate_metrics(
-    group_ids=data['group_id'].values,
-    scores=data['score'].values,
-    labels=data['label'].values,
+    group_ids=groups,
+    scores=positions,
+    labels=labels,
     ascending=True
 )
 print('Metrics:')
 print(json.dumps(metrics, indent=2))
+print('\n\n\n')
 ```
 
 And it gives the following output
 
 ```
+Grouping data before evaluation: 100%|██████████| 1/1 [00:00<00:00, 12633.45it/s]
+Evaluating performance: 100%|██████████| 1/1 [00:00<00:00, 5053.38it/s]
+
+Data:
+     groups: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  positions: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+     labels: [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1]
+
 Metrics:
 {
   "mAP@1": 1.0,
@@ -138,6 +153,9 @@ print(json.dumps(metrics, indent=2))
 This should print outputs like these below following:
 
 ```
+Grouping data before evaluation: 100%|██████████| 20/20 [00:00<00:00, 113512.96it/s]
+Evaluating performance: 100%|██████████| 20/20 [00:00<00:00, 10230.01it/s]
+
 Data
    group_id  user_id  item_id     score  label
 0         0        0       14  0.007491      1
@@ -165,35 +183,6 @@ Metrics:
 
 Note, that in this case the `group_id` columns is an integer, but in reality it can be any hashable type (e.g. tuple). 
 
-The metrics can be calculated directly from a dataframe as follows: 
-
-```python
-from recommender_metrics import calculate_metrics_from_dataframe 
-from recommender_metrics import generate_random_data 
-import json 
-data = generate_random_data()
-print(json.dumps(calculate_metrics_from_dataframe(data), indent=2))
-```
-
-which will output the same metrics: 
-
-```
-{
-  "mAP@1": 0.35,
-  "precison@1": 0.35,
-  "recall@1": 0.12380952380952381,
-  "mAP@5": 0.5009722222222222,
-  "precison@5": 0.2800000000000001,
-  "recall@5": 0.43892857142857145,
-  "mAP@10": 0.45625,
-  "precison@10": 0.2656547619047619,
-  "recall@10": 0.7352380952380952,
-  "mAP@20": 0.43771204652167156,
-  "precison@20": 0.2812859012762263,
-  "recall@20": 1.0
-}
-```
-
-By default the `calculate_metrics_from_dataframe` function requires that the input dataframe has columns `group_id`, 
-`label` and `score`. However, these can be specified with the optional `group_col`, `label_col` and `score_col` 
-arguments. 
+The metrics can be calculated directly from a dataframe with the `calculate_metrics_from_dataframe`. By default this
+function requires that the input dataframe has columns `group_id`, `label` and `score`. However, if these are called
+something different, their names can be specified with the optional `group_col`, `label_col` and `score_col` arguments. 
