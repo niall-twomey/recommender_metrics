@@ -3,12 +3,13 @@ from recommender_metrics.utils import group_score_and_labelled_data, verbose_ite
 from recommender_metrics.metrics import DEFAULT_METRICS, METRIC_FUNCTIONS
 
 __all__ = [
+    'calculate_metrics_from_grouped_data',
     'calculate_metrics_from_dataframe',
     'calculate_metrics',
 ]
 
 
-def validate_k_list(k_list):
+def _validate_k_list(k_list):
     if k_list is None:
         return [1, 5, 10, 20]
     elif isinstance(k_list, int):
@@ -20,7 +21,7 @@ def validate_k_list(k_list):
     raise ValueError
 
 
-def validate_metrics(metrics):
+def _validate_metrics(metrics):
     if metrics is None:
         metrics = DEFAULT_METRICS.copy()
     if isinstance(metrics, list) and all(map(lambda mm: isinstance(mm, str), metrics)):
@@ -31,7 +32,7 @@ def validate_metrics(metrics):
     return metrics
 
 
-def reduce_results(results_list):
+def _reduce_results(results_list):
     counter = Counter()
     for result in results_list:
         counter.update(result)
@@ -60,6 +61,10 @@ def _evaluate_performance_single_thread(grouped_data, k_list, metrics, verbose):
     return results_list
 
 
+def _evaluate_performance_multipe_threads(grouped_data, k_list, metrics, verbose, n_threads):
+    raise NotImplementedError
+
+
 def calculate_metrics_from_grouped_data(
         grouped_data,
         k_list=None,
@@ -71,12 +76,18 @@ def calculate_metrics_from_grouped_data(
     assert isinstance(n_threads, int) and n_threads > 0
 
     # Do basic validation
-    k_list = validate_k_list(k_list)
-    metrics = validate_metrics(metrics)
+    k_list = _validate_k_list(k_list)
+    metrics = _validate_metrics(metrics)
 
     #  Calculate the results
     if n_threads > 1:
-        raise NotImplementedError
+        results_list = _evaluate_performance_multipe_threads(
+            grouped_data=grouped_data,
+            k_list=k_list,
+            metrics=metrics,
+            verbose=verbose,
+            n_threads=n_threads
+        )
 
     else:
         results_list = _evaluate_performance_single_thread(
@@ -87,7 +98,7 @@ def calculate_metrics_from_grouped_data(
         )
 
     if reduce:
-        return reduce_results(
+        return _reduce_results(
             results_list=results_list
         )
 
@@ -279,6 +290,7 @@ def calculate_metrics(
         scores=scores,
         labels=labels,
         ascending=ascending,
+        verbose=verbose,
     )
 
     return calculate_metrics_from_grouped_data(

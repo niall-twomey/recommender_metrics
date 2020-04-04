@@ -2,18 +2,21 @@ import numpy as np
 from tqdm import tqdm
 
 __all__ = [
+    '_get_sorted_indices',
+    'sort_recommender_data',
+    'partition_by_group_from_sorted',
     'group_score_and_labelled_data',
     'verbose_iterator',
 ]
 
 
-def validate_data_type(arr):
+def _validate_data_type(arr):
     if isinstance(arr, np.ndarray):
         return arr
     return np.asarray(arr)
 
 
-def get_sort_order(
+def _get_sorted_indices(
         group_ids,
         scores,
         ascending=False
@@ -24,13 +27,28 @@ def get_sort_order(
     return np.lexsort((-scores, group_ids))
 
 
-def sort_data(
+def _get_changepoints(group_ids):
+    # The mask is sorted, so find the changepoints mask
+    changepoint_mask = (group_ids[1:] != group_ids[:-1])
+    changepoint_mask = np.append(True, changepoint_mask)
+    changepoint_mask = np.append(changepoint_mask, True)
+
+    # Get the changepoint inds
+    split_inds = np.argwhere(changepoint_mask).ravel()
+
+    # Slice positions:
+    #   {group_ids[start]: (start, end) for start, end in zip(split_inds[:-1], split_inds[1:])}
+
+    return split_inds
+
+
+def sort_recommender_data(
         group_ids,
         scores,
         labels,
         ascending=False
 ):
-    inds = get_sort_order(
+    inds = _get_sorted_indices(
         group_ids=group_ids,
         scores=scores,
         ascending=ascending,
@@ -45,16 +63,7 @@ def partition_by_group_from_sorted(
         labels,
         verbose,
 ):
-    # The mask is sorted, so find the changepoints mask
-    changepoint_mask = (group_ids[1:] != group_ids[:-1])
-    changepoint_mask = np.append(True, changepoint_mask)
-    changepoint_mask = np.append(changepoint_mask, True)
-
-    # Get the changepoint inds
-    split_inds = np.argwhere(changepoint_mask).ravel()
-
-    # Slice positions:
-    #   {group_ids[start]: (start, end) for start, end in zip(split_inds[:-1], split_inds[1:])}
+    split_inds = _get_changepoints(group_ids)
 
     return {
         group_ids[start]: dict(
@@ -80,11 +89,11 @@ def group_score_and_labelled_data(
         ascending=False,
         verbose=True
 ):
-    group_ids = validate_data_type(group_ids)
-    scores = validate_data_type(scores)
-    labels = validate_data_type(labels)
+    group_ids = _validate_data_type(group_ids)
+    scores = _validate_data_type(scores)
+    labels = _validate_data_type(labels)
 
-    group_ids, scores, labels = sort_data(
+    group_ids, scores, labels = sort_recommender_data(
         group_ids=group_ids,
         scores=scores,
         labels=labels,
@@ -111,32 +120,3 @@ def verbose_iterator(iterator, total=None, desc=None, verbose=True):
     if verbose:
         return tqdm(iterator, total=total, desc=desc)
     return iterator
-
-
-if __name__ == '__main__':
-    def main():
-        rng = np.random.RandomState(1234)
-
-        N = 30
-
-        group_ids = rng.randint(0, 10, N)
-        scores = rng.normal(0, 1, N)
-        labels = rng.rand(N) > 0.8
-
-        sorted_data, grouped_data = group_score_and_labelled_data(
-            group_ids=group_ids,
-            scores=scores,
-            labels=labels,
-        )
-
-        print(np.c_[group_ids, scores.round(1), labels])
-
-        for group, kwargs in grouped_data.items():
-            print(group)
-            for kk, vv in kwargs.items():
-                print(kk, vv)
-            print()
-            kwargs['scores'] += 10
-
-
-    main()

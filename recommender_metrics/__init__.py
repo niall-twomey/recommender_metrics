@@ -1,11 +1,11 @@
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 from recommender_metrics.utils import (
     group_score_and_labelled_data,
     verbose_iterator
 )
 
-from recommender_metrics.metric_estimation import (
+from recommender_metrics.calculation import (
     calculate_metrics_from_dataframe,
     calculate_metrics,
 )
