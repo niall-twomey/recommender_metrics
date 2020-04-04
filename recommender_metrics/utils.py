@@ -2,7 +2,6 @@ import numpy as np
 from tqdm import tqdm
 
 __all__ = [
-    '_get_sorted_indices',
     'sort_recommender_data',
     'partition_by_group_from_sorted',
     'group_score_and_labelled_data',

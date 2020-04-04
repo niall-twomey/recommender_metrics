@@ -55,9 +55,8 @@ print('\n\n\n')
 Which gives the following output: 
 
 ```
-Grouping data before evaluation: 100%|██████████| 10/10 [00:00<00:00, 66682.10it/s]
-Evaluating performance: 100%|██████████| 10/10 [00:00<00:00, 9756.46it/s]
-
+Grouping data before evaluation: 100%|███████████████████████████| 10/10 [00:00<00:00, 54400.83it/s]
+Evaluating performance: 100%|█████████████████████████████████████| 10/10 [00:00<00:00, 9688.85it/s]
 {
   "mAP@1": 0.3,
   "precision@1": 0.3,
@@ -104,14 +103,13 @@ print('\n\n\n')
 And it gives the following output
 
 ```
-Grouping data before evaluation: 100%|██████████| 1/1 [00:00<00:00, 12633.45it/s]
-Evaluating performance: 100%|██████████| 1/1 [00:00<00:00, 5053.38it/s]
-
 Data:
      groups: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   positions: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
      labels: [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1]
 
+Grouping data before evaluation: 100%|██████████████████████████████| 1/1 [00:00<00:00, 5050.40it/s]
+Evaluating performance: 100%|███████████████████████████████████████| 1/1 [00:00<00:00, 5125.41it/s]
 Metrics:
 {
   "mAP@1": 1.0,
@@ -153,30 +151,26 @@ print(json.dumps(metrics, indent=2))
 This should print outputs like these below following:
 
 ```
-Grouping data before evaluation: 100%|██████████| 20/20 [00:00<00:00, 113512.96it/s]
-Evaluating performance: 100%|██████████| 20/20 [00:00<00:00, 10230.01it/s]
+Data:
+  #groups: 255
+  #scores: 255
+  #labels: 255
 
-Data
-   group_id  user_id  item_id     score  label
-0         0        0       14  0.007491      1
-1         0        0       74  0.034926      0
-2         0        0       12  0.766481      0
-3         0        0        3  0.986688      0
-4         0        0       82  0.623281      0
-Calculating performance metrics over group_id: 100%|██████████| 20/20 [00:00<00:00, 97.07it/s]
+Grouping data before evaluation: 100%|███████████████████████████| 20/20 [00:00<00:00, 63119.70it/s]
+Evaluating performance: 100%|████████████████████████████████████| 20/20 [00:00<00:00, 10215.06it/s]
 Metrics:
 {
   "mAP@1": 0.35,
-  "precison@1": 0.35,
+  "precision@1": 0.35,
   "recall@1": 0.12380952380952381,
   "mAP@5": 0.5009722222222222,
-  "precison@5": 0.2800000000000001,
+  "precision@5": 0.2800000000000001,
   "recall@5": 0.43892857142857145,
   "mAP@10": 0.45625,
-  "precison@10": 0.2656547619047619,
+  "precision@10": 0.2656547619047619,
   "recall@10": 0.7352380952380952,
   "mAP@20": 0.43771204652167156,
-  "precison@20": 0.2812859012762263,
+  "precision@20": 0.2812859012762263,
   "recall@20": 1.0
 }
 ```
