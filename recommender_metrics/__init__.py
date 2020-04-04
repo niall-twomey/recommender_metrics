@@ -1,4 +1,4 @@
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 from recommender_metrics.utils import (
     group_score_and_labelled_data,

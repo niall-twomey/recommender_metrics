@@ -1,3 +1,4 @@
+from collections import Counter
 from recommender_metrics.utils import group_score_and_labelled_data, verbose_iterator
 from recommender_metrics.metrics import DEFAULT_METRICS, METRIC_FUNCTIONS
 
@@ -30,6 +31,15 @@ def validate_metrics(metrics):
     return metrics
 
 
+def reduce_results(results_list):
+    counter = Counter()
+    for result in results_list:
+        counter.update(result)
+    return {
+        kk: vv / len(results_list) for kk, vv in counter.items() if '@' in kk
+    }
+
+
 def _evaluate_performance_single_thread(grouped_data, k_list, metrics, verbose):
     results_list = list()
 
@@ -47,8 +57,7 @@ def _evaluate_performance_single_thread(grouped_data, k_list, metrics, verbose):
 
         results_list.append(res)
 
-    results = pd.DataFrame(results_list).set_index('group')
-    return results
+    return results_list
 
 
 def calculate_metrics_from_grouped_data(
@@ -70,7 +79,7 @@ def calculate_metrics_from_grouped_data(
         raise NotImplementedError
 
     else:
-        results = _evaluate_performance_single_thread(
+        results_list = _evaluate_performance_single_thread(
             grouped_data=grouped_data,
             k_list=k_list,
             metrics=metrics,
@@ -78,8 +87,11 @@ def calculate_metrics_from_grouped_data(
         )
 
     if reduce:
-        return results.mean().to_dict()
-    return results
+        return reduce_results(
+            results_list=results_list
+        )
+
+    return results_list
 
 
 def calculate_metrics_from_dataframe(
@@ -282,6 +294,7 @@ def calculate_metrics(
 if __name__ == '__main__':
     try:
         import pandas as pd
+
         pd.set_option('display.max_rows', 500)
         pd.set_option('display.max_columns', 500)
         pd.set_option('display.width', 1000)
@@ -291,6 +304,7 @@ if __name__ == '__main__':
     #
     #
     # First README example
+    #
     from recommender_metrics import calculate_metrics
     import numpy as np
     import json
@@ -308,19 +322,22 @@ if __name__ == '__main__':
     #
     #
     # Second README example:
+    #
     from recommender_metrics import calculate_metrics
     from recommender_metrics import search_data
     import json
 
-    data = search_data()
-    print('Data')
-    print(data.head())
+    groups, positions, labels = search_data()
+    print('Data:')
+    print('     groups:', groups)
+    print('  positions:', positions)
+    print('     labels:', labels)
     print()
 
     metrics = calculate_metrics(
-        group_ids=data['group_id'],
-        scores=data['search_position'],
-        labels=data['label'],
+        group_ids=groups,
+        scores=positions,
+        labels=labels,
         ascending=True
     )
     print('Metrics:')
@@ -330,19 +347,22 @@ if __name__ == '__main__':
     #
     #
     # Third README example:
+    #
     from recommender_metrics import calculate_metrics
     from recommender_metrics import generate_random_data
     import json
 
-    data = generate_random_data()
-    print('Data')
-    print(data.head())
+    groups, scores, labels = generate_random_data()
+    print('Data:')
+    print('  #groups:', len(groups))
+    print('  #scores:', len(scores))
+    print('  #labels:', len(labels))
     print()
 
     metrics = calculate_metrics(
-        group_ids=data['group_id'],
-        scores=data['score'],
-        labels=data['label']
+        group_ids=groups,
+        scores=scores,
+        labels=labels,
     )
     print('Metrics:')
     print(json.dumps(metrics, indent=2))
