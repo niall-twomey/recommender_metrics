@@ -15,7 +15,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/niall-twomey/recommender_metrics",
     install_requires=[
-        'pandas',
+        'numpy',
         'scikit-learn',
         'tqdm',
     ],
