@@ -1,86 +1,142 @@
+import numpy as np
 from tqdm import tqdm
 
 __all__ = [
-    'rank_dataframe',
+    'group_score_and_labelled_data',
     'verbose_iterator',
 ]
 
 
-def rank_dataframe(
-        df,
-        group_col='group_id',
-        score_col='score',
-        ascending=False,
-        sort_group_rank=True,
-        from_zero=True
+def validate_data_type(arr):
+    if isinstance(arr, np.ndarray):
+        return arr
+    return np.asarray(arr)
+
+
+def get_sort_order(
+        group_ids,
+        scores,
+        ascending=False
 ):
-    """
-    This function takes a dataframe, groups it according to the `group_col` parameter,
-    and within each group ranks it according to the `score_col` parameter. The rank order
-    is populated into a new field of the dataframe based on string formatting of
-    f'{score_col}_ranked'. If this column is already in `df` it will be overwritten.
+    # nump.lexsort sorts from right to left in its first argument
+    if ascending:
+        return np.lexsort((scores, group_ids))
+    return np.lexsort((-scores, group_ids))
 
-    Parameters
-    ----------
-    df : Pandas Dataframe
-        This dataframe is required to be made from the two columns specified in the next
-        two arguments.
 
-    group_col : str, option (default='group_id')
-        The column name of `df` that is used in groupby
+def sort_data(
+        group_ids,
+        scores,
+        labels,
+        ascending=False
+):
+    inds = get_sort_order(
+        group_ids=group_ids,
+        scores=scores,
+        ascending=ascending,
+    )
 
-    score_col : str, optional (default='score')
-        The column name of `df` that is used for ranking
+    return group_ids[inds], scores[inds], labels[inds]
 
-    ascending : bool, optional (default=False)
-        Whether to sort each group in ascending or descending order. In search result data,
-        set `ascending=True` since lower search positions are better. With ranking scores
-        typically larger scores define a better afinity between a user-item pair.
 
-    sort_group_rank : bool, optional (default=True)
-        Whether the dataframe should be re-ordered by the `group_col` and `ranked_col`. If
-        this function is being used for evaluating performance (as in from `./metric_estimation.py`)
-        this parameter should be `True`
+def partition_by_group_from_sorted(
+        group_ids,
+        scores,
+        labels,
+        verbose,
+):
+    # The mask is sorted, so find the changepoints mask
+    changepoint_mask = (group_ids[1:] != group_ids[:-1])
+    changepoint_mask = np.append(True, changepoint_mask)
+    changepoint_mask = np.append(changepoint_mask, True)
 
-    from_zero : bool, optional (default=True)
-        This parameter specifies whether the rank order column will start from 0 or 1. When
-        this parameter is True, rank order goes from 0, when it's False it goes from 1.
+    # Get the changepoint inds
+    split_inds = np.argwhere(changepoint_mask).ravel()
 
-    Returns
-    -------
-    ranked_dataframe : pandas Dataframe
-        The original dataframe with the new rank order column
+    # Slice positions:
+    #   {group_ids[start]: (start, end) for start, end in zip(split_inds[:-1], split_inds[1:])}
 
-    ranked_col : str
-        The name of the added column
-    """
-
-    assert group_col in df
-    assert score_col in df
-
-    ranked_col = f'{score_col}_ranked'
-
-    # pd.Series.rank orders from 1; this variable allows the ranks to be 0-indexed
-    from_zero = 1 if from_zero else 0
-
-    ranked_df = df.assign(**{
-        ranked_col: df.groupby(group_col)[score_col].apply(
-            lambda score: score.rank(
-                method='first',  # How to manage ties in scores
-                ascending=ascending  # Whether larger scores are better
-            ).astype(int) - from_zero
+    return {
+        group_ids[start]: dict(
+            scores=scores[start:end].astype(float),
+            labels=labels[start:end].astype(bool),
+            ranks=np.arange(1, end - start + 1).astype(int),
+        ) for start, end in verbose_iterator(
+            zip(
+                split_inds[:-1],
+                split_inds[1:],
+            ),
+            total=len(split_inds) - 1,
+            desc=f'Grouping data before evaluation',
+            verbose=verbose,
         )
-    })
+    }
 
-    if sort_group_rank:
-        ranked_df = ranked_df.sort_values(
-            by=[group_col, ranked_col],
-        )
 
-    return ranked_df, ranked_col
+def group_score_and_labelled_data(
+        group_ids,
+        scores,
+        labels,
+        ascending=False,
+        verbose=True
+):
+    group_ids = validate_data_type(group_ids)
+    scores = validate_data_type(scores)
+    labels = validate_data_type(labels)
+
+    group_ids, scores, labels = sort_data(
+        group_ids=group_ids,
+        scores=scores,
+        labels=labels,
+        ascending=ascending,
+    )
+
+    sorted_data = dict(
+        group_ids=group_ids,
+        scores=scores,
+        labels=labels,
+    )
+
+    grouped_data = partition_by_group_from_sorted(
+        group_ids=group_ids,
+        scores=scores,
+        labels=labels,
+        verbose=verbose
+    )
+
+    return sorted_data, grouped_data
 
 
 def verbose_iterator(iterator, total=None, desc=None, verbose=True):
     if verbose:
         return tqdm(iterator, total=total, desc=desc)
     return iterator
+
+
+if __name__ == '__main__':
+    def main():
+        rng = np.random.RandomState(1234)
+
+        N = 30
+
+        group_ids = rng.randint(0, 10, N)
+        scores = rng.normal(0, 1, N)
+        labels = rng.rand(N) > 0.8
+
+        sorted_data, grouped_data = group_score_and_labelled_data(
+            group_ids=group_ids,
+            scores=scores,
+            labels=labels,
+        )
+
+        print(np.c_[group_ids, scores.round(1), labels])
+
+        for group, kwargs in grouped_data.items():
+            print(group)
+            for kk, vv in kwargs.items():
+                print(kk, vv)
+            print()
+            kwargs['scores'] += 10
+
+
+    main()

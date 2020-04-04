@@ -3,11 +3,11 @@ import random
 
 __all__ = [
     'generate_random_data',
-    'predefined_data',
+    'search_data',
 ]
 
 
-def predefined_data():
+def search_data():
     # This data is from the following excellent discussion on metric calculation for rec sys:
     #  https://ils.unc.edu/courses/2013_spring/inls509_001/lectures/10-EvaluationMetrics.pdf
 
@@ -16,10 +16,10 @@ def predefined_data():
             [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1]
     ):
         data.append(dict(
-            group_id=-1,
-            user_id=-1,
-            recipe_id=-1,
-            score=-ii,
+            group_id=1,
+            user_id=1,
+            item_id=1,
+            search_position=ii,
             label=ll,
         ))
 

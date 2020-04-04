@@ -1,3 +1,4 @@
+import numpy as np
 from sklearn import metrics as skl_metrics
 
 __all__ = [
@@ -11,44 +12,44 @@ __all__ = [
 ]
 
 
-def average_precision(df, df_at_k, score_col, label_col, ranked_col):
-    pos_group = df_at_k.loc[df_at_k[label_col] == 1]
-    if len(pos_group) == 0:
-        return 0.0  # TODO: check this default return value
-    precisions = pos_group[label_col].cumsum() / pos_group[ranked_col]
+def average_precision(scores, labels, ranks, k):
+    labels_at_k, ranks_at_k = labels[:k], ranks[:k]
+    if not labels_at_k.any():
+        return 0.0  # TODO: verify default value
+    precisions = labels_at_k[labels_at_k].cumsum() / ranks_at_k[labels_at_k]
     return precisions.mean()
 
 
-def precision(df, df_at_k, score_col, label_col, ranked_col):
-    precision_at_k = df_at_k[label_col].cumsum() / df_at_k[ranked_col]
-    return precision_at_k.values[-1]
+def precision(scores, labels, ranks, k):
+    labels_at_k, ranks_at_k = labels[:k], ranks[:k]
+    return labels_at_k.sum() / ranks_at_k[-1]
 
 
-def recall(df, df_at_k, score_col, label_col, ranked_col):
-    den = df[label_col].sum()
-    if den == 0:
-        return 1.0  # TODO: check this default return value
-    recalls = df_at_k[label_col].cumsum() / den
-    return recalls.values[-1]
+def recall(scores, labels, ranks, k):
+    denominator = labels.sum()
+    if denominator == 0:
+        return 1.0  # TODO: verify default value
+    labels_at_k, scores_at_k, ranks_at_k = labels[:k], scores[:k], ranks[:k]
+    return labels_at_k.sum() / denominator
 
 
-def auroc(df, df_at_k, score_col, label_col, ranked_col):
-    uniques = df_at_k[label_col].unique()
+def auroc(scores, labels, ranks, k):
+    uniques = np.unique(labels)
     if uniques.shape[0] == 1:
         return uniques[0]  # TODO: check this default return value
     return skl_metrics.roc_auc_score(
-        y_true=df_at_k[label_col],
-        y_score=df_at_k[score_col]
+        y_true=labels[:k],
+        y_score=scores[:k]
     )
 
 
-def ndcg(df, df_at_k, score_col, label_col, ranked_col):
-    if df_at_k.shape[0] <= 1:
+def ndcg(scores, labels, ranks, k):
+    if labels.shape[0] <= 1:
         return 0  # TODO: check this default return value
     return skl_metrics.ndcg_score(
-        y_true=df_at_k[label_col].values[None, :],
-        y_score=df_at_k[score_col].values[None, :],
-        k=df_at_k.shape[0],
+        y_true=labels[:k],
+        y_score=scores[:k],
+        k=k,
     )
 
 
@@ -61,5 +62,8 @@ METRIC_FUNCTIONS = dict(
 )
 
 DEFAULT_METRICS = [
-    'mAP', 'precision', 'recall'
+    'mAP',
+    'precision',
+    'recall',
 ]
+

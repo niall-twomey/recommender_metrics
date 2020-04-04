@@ -70,7 +70,51 @@ Calculating performance metrics over group_id: 100%|█████████�
 }
 ```
 
-Some pre-defined data can be evaluated as follows 
+This works with `ascending`-like scores (that you might get with search data). The following example 
+is duplicated from (here)[https://ils.unc.edu/courses/2013_spring/inls509_001/lectures/10-EvaluationMetrics.pdf]. 
+
+
+```python
+from recommender_metrics import calculate_metrics
+from recommender_metrics import search_data
+import json
+
+data = search_data()
+print('Data')
+print(data.head())
+print()
+
+metrics = calculate_metrics(
+    group_ids=data['group_id'].values,
+    scores=data['score'].values,
+    labels=data['label'].values,
+    ascending=True
+)
+print('Metrics:')
+print(json.dumps(metrics, indent=2))
+```
+
+And it gives the following output
+
+```
+Metrics:
+{
+  "mAP@1": 1.0,
+  "precision@1": 1.0,
+  "recall@1": 0.1,
+  "mAP@5": 0.8041666666666667,
+  "precision@5": 0.8,
+  "recall@5": 0.4,
+  "mAP@10": 0.8121315192743763,
+  "precision@10": 0.7,
+  "recall@10": 0.7,
+  "mAP@20": 0.7555050505050506,
+  "precision@20": 0.5,
+  "recall@20": 1.0
+}
+```
+
+Other pre-defined data can be evaluated as follows 
 
 ```python
 from recommender_metrics import calculate_metrics 
@@ -153,71 +197,3 @@ which will output the same metrics:
 By default the `calculate_metrics_from_dataframe` function requires that the input dataframe has columns `group_id`, 
 `label` and `score`. However, these can be specified with the optional `group_col`, `label_col` and `score_col` 
 arguments. 
-
-## Multiprocessing 
-
-A super basic multiprocessing wrapper around this code has been done. This can simply be acquired by setting the 
-`n_threads` argument in the main evaluation functions to a value larger than 1. The following code snipped illustrates 
-a comparison between the two approaches 
-
-```python
-from recommender_metrics import random_data, calculate_metrics_from_dataframe
-from datetime import datetime
-
-
-def single_multi_thread_test(df, n_threads=5):
-    print(f'Dataframe shape={df.shape} with {df.group_id.nunique()} unique groups')
-
-    start = datetime.now()
-    single = calculate_metrics_from_dataframe(df)
-    print(f'TIME FOR SINGLE THREAD ({datetime.now() - start})')
-
-    start = datetime.now()
-    multi = calculate_metrics_from_dataframe(df, n_threads=n_threads)
-    print(f'TIME FOR {n_threads} THREADS ({datetime.now() - start})')
-
-    print(f'All the same: {(single.items() == multi.items())}')
-    print()
-
-
-single_multi_thread_test(random_data.predefined_data())
-single_multi_thread_test(random_data.generate_random_data())
-single_multi_thread_test(random_data.generate_random_data(
-    n_users=1000,
-    n_items=10000,
-    n_interactions_per_user=100,
-))
-```
-
-And on my laptop I get the following outputs
-
-```
-Calculating performance metrics over group_id: 100%|██████████| 1/1 [00:00<00:00, 110.72it/s]
-Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 1027.51it/s]
-TIME FOR SINGLE THREAD (0:00:00.020452)
-Computing metrics: 100%|██████████| 4/4 [00:00<00:00, 286.79it/s]
-TIME FOR 5 THREADS (0:00:00.130910)
-All the same: True
-
-Dataframe shape=(255, 5) with 20 unique groups
-Calculating performance metrics over group_id: 100%|██████████| 20/20 [00:00<00:00, 116.21it/s]
-TIME FOR SINGLE THREAD (0:00:00.192167)
-Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 573.62it/s]
-Computing metrics: 100%|██████████| 80/80 [00:00<00:00, 468.03it/s]
-TIME FOR 5 THREADS (0:00:00.246602)
-All the same: True
-
-Dataframe shape=(49615, 5) with 1000 unique groups
-Calculating performance metrics over group_id: 100%|██████████| 1000/1000 [00:08<00:00, 119.20it/s]
-TIME FOR SINGLE THREAD (0:00:08.947291)
-Constructing arguments: 100%|██████████| 4/4 [00:00<00:00, 28.59it/s]
-Computing metrics: 100%|██████████| 4000/4000 [00:02<00:00, 1827.97it/s]
-TIME FOR 5 THREADS (0:00:02.983843)
-All the same: True
-```
-
-The takeaway message from this is that when the data is small (the first two examples) the single threaded version 
-is actually more efficient (although the loss in efficienc won't be noticable). I presume this is due to the setup 
-that the multiprocessing library needs to do before joining the pools. In contrast, when the size of the groups grows
-the gains of multiprocessing are much clearer; concretely evaluation takes 2.75 seconds rather than 8.6 seconds.  
-
