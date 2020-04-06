@@ -76,7 +76,7 @@ def partition_by_group_from_sorted(
             ),
             total=len(split_inds) - 1,
             desc=f'Grouping data before evaluation',
-            verbose=verbose,
+            verbose=int(verbose) > 1,
         )
     }
 
