@@ -29,11 +29,11 @@ def validate_k_list(k_list):
 def validate_metrics(metrics, metric_dict=None):
     metric_dict = {**METRIC_FUNCTIONS, **(metric_dict or dict())}
     if metrics is None:
-        metrics = metric_dict.copy()
+        metrics = DEFAULT_METRICS
     if isinstance(metrics, str):
         metrics = [metrics]
     if isinstance(metrics, list) and all(map(lambda mm: isinstance(mm, str), metrics)):
-        metrics = {mm: METRIC_FUNCTIONS[mm] for mm in metrics}
+        metrics = {mm: metric_dict[mm] for mm in metrics}
     assert isinstance(metrics, dict)
     if not all(map(callable, metrics.values())):
         raise TypeError(f"All metrics passed into this function must be callable")
