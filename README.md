@@ -54,8 +54,7 @@ print(json.dumps(metrics, indent=2))
 Which gives the following output: 
 
 ```
-Grouping data before evaluation: 100%|███████████████████████████| 10/10 [00:00<00:00, 54400.83it/s]
-Evaluating performance: 100%|█████████████████████████████████████| 10/10 [00:00<00:00, 9688.85it/s]
+Evaluating performance: 100%|█████████████████████████████████████| 10/10 [00:00<00:00, 8331.95it/s]
 {
   "mAP@1": 0.3,
   "precision@1": 0.3,
@@ -73,7 +72,7 @@ Evaluating performance: 100%|█████████████████
 ```
 
 This works with `ascending`-like scores (that you might get with search data). The following example 
-is duplicated from (here)[https://ils.unc.edu/courses/2013_spring/inls509_001/lectures/10-EvaluationMetrics.pdf]. 
+is duplicated from [here](https://ils.unc.edu/courses/2013_spring/inls509_001/lectures/10-EvaluationMetrics.pdf). 
 
 
 ```python
@@ -82,20 +81,16 @@ from recommender_metrics import search_data
 import json
 
 groups, positions, labels = search_data()
-print('Data:')
-print('     groups:', groups)
-print('  positions:', positions)
-print('     labels:', labels)
+print("Data:")
+print("     groups:", groups)
+print("  positions:", positions)
+print("     labels:", labels)
 print()
 
-metrics = calculate_metrics(
-    group_ids=groups,
-    scores=positions,
-    labels=labels,
-    ascending=True
-)
-print('Metrics:')
+metrics = calculate_metrics(group_ids=groups, scores=positions, labels=labels, ascending=True)
+print("Metrics:")
 print(json.dumps(metrics, indent=2))
+print("\n\n\n")
 ```
 
 And it gives the following output
@@ -106,8 +101,7 @@ Data:
   positions: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
      labels: [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1]
 
-Grouping data before evaluation: 100%|██████████████████████████████| 1/1 [00:00<00:00, 5050.40it/s]
-Evaluating performance: 100%|███████████████████████████████████████| 1/1 [00:00<00:00, 5125.41it/s]
+Evaluating performance: 100%|███████████████████████████████████████| 1/1 [00:00<00:00, 3659.95it/s]
 Metrics:
 {
   "mAP@1": 1.0,
@@ -133,44 +127,40 @@ from recommender_metrics import generate_random_data
 import json
 
 groups, scores, labels = generate_random_data()
-print('Data:')
-print('  #groups:', len(groups))
-print('  #scores:', len(scores))
-print('  #labels:', len(labels))
+print("Data:")
+print("  #groups:", len(groups))
+print("  #scores:", len(scores))
+print("  #labels:", len(labels))
 print()
 
-metrics = calculate_metrics(
-    group_ids=groups,
-    scores=scores,
-    labels=labels,
-)
-print('Metrics:')
+metrics = calculate_metrics(group_ids=groups, scores=scores, labels=labels,)
+print("Metrics:")
 print(json.dumps(metrics, indent=2))
+print("\n\n\n")
 ```
 
 This should print outputs like these below following:
 
 ```
 Data:
-  #groups: 255
-  #scores: 255
-  #labels: 255
+  #groups: 250
+  #scores: 250
+  #labels: 250
 
-Grouping data before evaluation: 100%|███████████████████████████| 20/20 [00:00<00:00, 63119.70it/s]
-Evaluating performance: 100%|████████████████████████████████████| 20/20 [00:00<00:00, 10215.06it/s]
+Evaluating performance: 100%|█████████████████████████████████████| 20/20 [00:00<00:00, 9519.53it/s]
 Metrics:
 {
-  "mAP@1": 0.35,
-  "precision@1": 0.35,
-  "recall@1": 0.12380952380952381,
-  "mAP@5": 0.5009722222222222,
-  "precision@5": 0.2800000000000001,
-  "recall@5": 0.43892857142857145,
-  "mAP@10": 0.45625,
-  "precision@10": 0.2656547619047619,
-  "recall@10": 0.7352380952380952,
-  "mAP@20": 0.43771204652167156,
-  "precision@20": 0.2812859012762263,
+  "mAP@1": 0.25,
+  "precision@1": 0.25,
+  "recall@1": 0.12250000000000001,
+  "mAP@5": 0.47944444444444434,
+  "precision@5": 0.2983333333333334,
+  "recall@5": 0.4845634920634921,
+  "mAP@10": 0.4311398809523809,
+  "precision@10": 0.2794444444444445,
+  "recall@10": 0.69015873015873,
+  "mAP@20": 0.4035164507995021,
+  "precision@20": 0.3168808696033928,
   "recall@20": 1.0
 }
 ```
