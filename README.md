@@ -49,7 +49,6 @@ metrics = calculate_metrics(
 )
 
 print(json.dumps(metrics, indent=2))
-print('\n\n\n')
 ```
 
 Which gives the following output: 
@@ -97,7 +96,6 @@ metrics = calculate_metrics(
 )
 print('Metrics:')
 print(json.dumps(metrics, indent=2))
-print('\n\n\n')
 ```
 
 And it gives the following output
@@ -130,19 +128,21 @@ Metrics:
 Other pre-defined data can be evaluated as follows 
 
 ```python
-from recommender_metrics import calculate_metrics 
-from recommender_metrics import generate_random_data 
-import json 
+from recommender_metrics import calculate_metrics
+from recommender_metrics import generate_random_data
+import json
 
-data = generate_random_data()
-print('Data')
-print(data.head())
+groups, scores, labels = generate_random_data()
+print('Data:')
+print('  #groups:', len(groups))
+print('  #scores:', len(scores))
+print('  #labels:', len(labels))
 print()
 
 metrics = calculate_metrics(
-    group_ids=data['group_id'], 
-    scores=data['score'], 
-    labels=data['label']
+    group_ids=groups,
+    scores=scores,
+    labels=labels,
 )
 print('Metrics:')
 print(json.dumps(metrics, indent=2))

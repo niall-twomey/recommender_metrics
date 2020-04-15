@@ -1,11 +1,14 @@
 from collections import Counter
-from recommender_metrics.utils import group_score_and_labelled_data, verbose_iterator
-from recommender_metrics.metrics import DEFAULT_METRICS, METRIC_FUNCTIONS
+
+from recommender_metrics.metrics import DEFAULT_METRICS
+from recommender_metrics.metrics import METRIC_FUNCTIONS
+from recommender_metrics.utils import group_score_and_labelled_data
+from recommender_metrics.utils import verbose_iterator
 
 __all__ = [
-    'calculate_metrics_from_grouped_data',
-    'calculate_metrics_from_dataframe',
-    'calculate_metrics',
+    "calculate_metrics_from_grouped_data",
+    "calculate_metrics_from_dataframe",
+    "calculate_metrics",
 ]
 
 
@@ -28,7 +31,7 @@ def _validate_metrics(metrics):
         metrics = {mm: METRIC_FUNCTIONS[mm] for mm in metrics}
     assert isinstance(metrics, dict)
     if not all(map(callable, metrics.values())):
-        raise TypeError(f'All metrics passed into this function must be callable')
+        raise TypeError(f"All metrics passed into this function must be callable")
     return metrics
 
 
@@ -36,42 +39,36 @@ def _reduce_results(results_list):
     counter = Counter()
     for result in results_list:
         counter.update(result)
-    return {
-        kk: vv / len(results_list) for kk, vv in counter.items() if '@' in kk
-    }
+    count = float(len(results_list))
+    return {kk: vv / count for kk, vv in counter.items() if "@" in kk}
 
 
-def _evaluate_performance_single_thread(grouped_data, k_list, metrics, verbose):
+def _evaluate_performance_single_thread(item_iterator, total, k_list, metrics, verbose):
+    if isinstance(item_iterator, dict):
+        item_iterator = item_iterator.items()
+
     results_list = list()
 
     # Iterate over groups
     for group_id, group in verbose_iterator(
-            grouped_data.items(),
-            verbose=verbose,
-            total=len(grouped_data),
-            desc=f'Evaluating performance'
+        iterator=item_iterator, verbose=verbose, total=total, desc=f"Evaluating performance",
     ):
         res = dict(group=group_id)
         for k in k_list:
             for key, func in metrics.items():
-                res[f'{key}@{k}'] = func(k=k, **group)
+                res[f"{key}@{k}"] = func(k=k, **group)
 
         results_list.append(res)
 
     return results_list
 
 
-def _evaluate_performance_multipe_threads(grouped_data, k_list, metrics, verbose, n_threads):
+def _evaluate_performance_multipe_threads(grouped_data, k_list, metrics, n_threads):
     raise NotImplementedError
 
 
 def calculate_metrics_from_grouped_data(
-        grouped_data,
-        k_list=None,
-        metrics=None,
-        verbose=True,
-        reduce=True,
-        n_threads=1,
+    grouped_data, k_list=None, metrics=None, verbose=True, reduce=True, n_threads=1,
 ):
     assert isinstance(n_threads, int) and n_threads > 0
 
@@ -82,40 +79,35 @@ def calculate_metrics_from_grouped_data(
     #  Calculate the results
     if n_threads > 1:
         results_list = _evaluate_performance_multipe_threads(
-            grouped_data=grouped_data,
-            k_list=k_list,
-            metrics=metrics,
-            verbose=verbose,
-            n_threads=n_threads
+            grouped_data=grouped_data, k_list=k_list, metrics=metrics, n_threads=n_threads,
         )
 
     else:
         results_list = _evaluate_performance_single_thread(
-            grouped_data=grouped_data,
+            item_iterator=grouped_data.items(),
+            total=len(grouped_data),
             k_list=k_list,
             metrics=metrics,
             verbose=verbose,
         )
 
     if reduce:
-        return _reduce_results(
-            results_list=results_list
-        )
+        return _reduce_results(results_list=results_list)
 
     return results_list
 
 
 def calculate_metrics_from_dataframe(
-        df,
-        k_list=None,
-        ascending=False,
-        group_col='group_id',
-        label_col='label',
-        score_col='score',
-        metrics=None,
-        verbose=True,
-        reduce=True,
-        n_threads=1,
+    df,
+    k_list=None,
+    ascending=False,
+    group_col="group_id",
+    label_col="label",
+    score_col="score",
+    metrics=None,
+    verbose=True,
+    reduce=True,
+    n_threads=1,
 ):
     """
     This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
@@ -205,15 +197,7 @@ def calculate_metrics_from_dataframe(
 
 
 def calculate_metrics(
-        group_ids,
-        scores,
-        labels,
-        k_list=None,
-        ascending=False,
-        metrics=None,
-        verbose=True,
-        reduce=True,
-        n_threads=1,
+    group_ids, scores, labels, k_list=None, ascending=False, metrics=None, verbose=True, reduce=True, n_threads=1,
 ):
     """
     This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
@@ -286,96 +270,9 @@ def calculate_metrics(
     """
 
     sorted_data, grouped_data = group_score_and_labelled_data(
-        group_ids=group_ids,
-        scores=scores,
-        labels=labels,
-        ascending=ascending,
-        verbose=verbose,
+        group_ids=group_ids, scores=scores, labels=labels, ascending=ascending, verbose=verbose,
     )
 
     return calculate_metrics_from_grouped_data(
-        grouped_data,
-        metrics=metrics,
-        verbose=verbose,
-        reduce=reduce,
-        n_threads=n_threads,
-        k_list=k_list,
+        grouped_data, metrics=metrics, verbose=verbose, reduce=reduce, n_threads=n_threads, k_list=k_list,
     )
-
-
-if __name__ == '__main__':
-    try:
-        import pandas as pd
-
-        pd.set_option('display.max_rows', 500)
-        pd.set_option('display.max_columns', 500)
-        pd.set_option('display.width', 1000)
-    except ImportError:
-        pass
-
-    #
-    #
-    # First README example
-    #
-    from recommender_metrics import calculate_metrics
-    import numpy as np
-    import json
-
-    rng = np.random.RandomState(1234)
-    metrics = calculate_metrics(
-        group_ids=rng.randint(0, 10, 100),
-        scores=rng.normal(0, 1, 100),
-        labels=rng.rand(100) > 0.8
-    )
-
-    print(json.dumps(metrics, indent=2))
-    print('\n\n\n')
-
-    #
-    #
-    # Second README example:
-    #
-    from recommender_metrics import calculate_metrics
-    from recommender_metrics import search_data
-    import json
-
-    groups, positions, labels = search_data()
-    print('Data:')
-    print('     groups:', groups)
-    print('  positions:', positions)
-    print('     labels:', labels)
-    print()
-
-    metrics = calculate_metrics(
-        group_ids=groups,
-        scores=positions,
-        labels=labels,
-        ascending=True
-    )
-    print('Metrics:')
-    print(json.dumps(metrics, indent=2))
-    print('\n\n\n')
-
-    #
-    #
-    # Third README example:
-    #
-    from recommender_metrics import calculate_metrics
-    from recommender_metrics import generate_random_data
-    import json
-
-    groups, scores, labels = generate_random_data()
-    print('Data:')
-    print('  #groups:', len(groups))
-    print('  #scores:', len(scores))
-    print('  #labels:', len(labels))
-    print()
-
-    metrics = calculate_metrics(
-        group_ids=groups,
-        scores=scores,
-        labels=labels,
-    )
-    print('Metrics:')
-    print(json.dumps(metrics, indent=2))
-    print('\n\n\n')

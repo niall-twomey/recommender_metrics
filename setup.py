@@ -14,17 +14,15 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/niall-twomey/recommender_metrics",
-    install_requires=[
-        'numpy',
-        'scikit-learn',
-        'tqdm',
-    ],
+    install_requires=["numpy", "scikit-learn", "tqdm"],
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
+    test_suite="nose.collector",
+    tests_require=["nose"],
 )

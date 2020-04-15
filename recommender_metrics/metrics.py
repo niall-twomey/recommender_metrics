@@ -2,13 +2,13 @@ import numpy as np
 from sklearn import metrics as skl_metrics
 
 __all__ = [
-    'average_precision',
-    'precision',
-    'recall',
-    'auroc',
-    'ndcg',
-    'METRIC_FUNCTIONS',
-    'DEFAULT_METRICS',
+    "average_precision",
+    "precision",
+    "recall",
+    "auroc",
+    "ndcg",
+    "METRIC_FUNCTIONS",
+    "DEFAULT_METRICS",
 ]
 
 
@@ -29,41 +29,30 @@ def recall(scores, labels, ranks, k):
     denominator = labels.sum()
     if denominator == 0:
         return 1.0  # TODO: verify default value
-    labels_at_k, scores_at_k, ranks_at_k = labels[:k], scores[:k], ranks[:k]
-    return labels_at_k.sum() / denominator
+    return labels[:k].sum() / denominator
 
 
 def auroc(scores, labels, ranks, k):
-    uniques = np.unique(labels)
+    # NOTE: this function is slow to compute
+    uniques = np.unique(labels[:k])
     if uniques.shape[0] == 1:
-        return uniques[0]  # TODO: check this default return value
-    return skl_metrics.roc_auc_score(
-        y_true=labels[:k],
-        y_score=scores[:k]
-    )
+        return float(next(iter(uniques)))  # TODO: check this default return value
+    return skl_metrics.roc_auc_score(y_true=labels[:k], y_score=scores[:k])
 
 
 def ndcg(scores, labels, ranks, k):
-    if labels.shape[0] <= 1:
+    # NOTE: this function is slow to compute
+    if labels[:k].shape[0] <= 1:
         return 0  # TODO: check this default return value
-    return skl_metrics.ndcg_score(
-        y_true=labels[:k],
-        y_score=scores[:k],
-        k=k,
-    )
+    return skl_metrics.ndcg_score(y_true=labels[None, :k], y_score=scores[None, :k], k=k,)
 
 
-METRIC_FUNCTIONS = dict(
-    mAP=average_precision,
-    precision=precision,
-    recall=recall,
-    auroc=auroc,
-    ndcg=ndcg,
-)
+METRIC_FUNCTIONS = dict(mAP=average_precision, precision=precision, recall=recall, auroc=auroc, ndcg=ndcg,)
 
 DEFAULT_METRICS = [
-    'mAP',
-    'precision',
-    'recall',
+    "mAP",
+    "precision",
+    "recall",
+    # 'auroc',
+    # 'ndcg',
 ]
-
