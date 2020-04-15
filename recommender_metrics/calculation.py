@@ -27,8 +27,7 @@ def validate_k_list(k_list):
 
 
 def validate_metrics(metrics, metric_dict=None):
-    if metric_dict is None:
-        metric_dict = DEFAULT_METRICS
+    metric_dict = {**METRIC_FUNCTIONS, **(metric_dict or dict())}
     if metrics is None:
         metrics = metric_dict.copy()
     if isinstance(metrics, str):
@@ -50,18 +49,18 @@ def _reduce_results(results_list):
 
 
 def _evaluate_performance_single_thread(group_dict, k_list, metrics, verbose):
-    results_list = list()
+    results_list = [dict() for _ in range(len(group_dict))]
 
     # Iterate over groups
-    for group_id, group in verbose_iterator(
-        iterator=group_dict.items(), verbose=verbose, total=len(group_dict), desc=f"Evaluating performance",
+    for res, (group_id, group) in verbose_iterator(
+        iterator=zip(results_list, group_dict.items()),
+        verbose=verbose,
+        total=len(group_dict),
+        desc=f"Evaluating performance",
     ):
-        res = dict(group=group_id)
         for k in k_list:
             for key, func in metrics.items():
                 res[f"{key}@{k}"] = func(k=k, **group)
-
-        results_list.append(res)
 
     return results_list
 
