@@ -44,7 +44,7 @@ def example3():
     from recommender_metrics import generate_random_data
     import json
 
-    groups, scores, labels = generate_random_data(n_users=1000)
+    groups, scores, labels = generate_random_data()
     print("Data:")
     print("  #groups:", len(groups))
     print("  #scores:", len(scores))

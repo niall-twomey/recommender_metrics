@@ -9,10 +9,12 @@ __all__ = [
     "calculate_metrics_from_grouped_data",
     "calculate_metrics_from_dataframe",
     "calculate_metrics",
+    "validate_k_list",
+    "validate_metrics",
 ]
 
 
-def _validate_k_list(k_list):
+def validate_k_list(k_list):
     if k_list is None:
         return [1, 5, 10, 20]
     elif isinstance(k_list, int):
@@ -24,9 +26,13 @@ def _validate_k_list(k_list):
     raise ValueError
 
 
-def _validate_metrics(metrics):
+def validate_metrics(metrics, metric_dict=None):
+    if metric_dict is None:
+        metric_dict = DEFAULT_METRICS
     if metrics is None:
-        metrics = DEFAULT_METRICS.copy()
+        metrics = metric_dict.copy()
+    if isinstance(metrics, str):
+        metrics = [metrics]
     if isinstance(metrics, list) and all(map(lambda mm: isinstance(mm, str), metrics)):
         metrics = {mm: METRIC_FUNCTIONS[mm] for mm in metrics}
     assert isinstance(metrics, dict)
@@ -43,15 +49,12 @@ def _reduce_results(results_list):
     return {kk: vv / count for kk, vv in counter.items() if "@" in kk}
 
 
-def _evaluate_performance_single_thread(item_iterator, total, k_list, metrics, verbose):
-    if isinstance(item_iterator, dict):
-        item_iterator = item_iterator.items()
-
+def _evaluate_performance_single_thread(group_dict, k_list, metrics, verbose):
     results_list = list()
 
     # Iterate over groups
     for group_id, group in verbose_iterator(
-        iterator=item_iterator, verbose=verbose, total=total, desc=f"Evaluating performance",
+        iterator=group_dict.items(), verbose=verbose, total=len(group_dict), desc=f"Evaluating performance",
     ):
         res = dict(group=group_id)
         for k in k_list:
@@ -73,8 +76,8 @@ def calculate_metrics_from_grouped_data(
     assert isinstance(n_threads, int) and n_threads > 0
 
     # Do basic validation
-    k_list = _validate_k_list(k_list)
-    metrics = _validate_metrics(metrics)
+    k_list = validate_k_list(k_list)
+    metrics = validate_metrics(metrics)
 
     #  Calculate the results
     if n_threads > 1:
@@ -84,11 +87,7 @@ def calculate_metrics_from_grouped_data(
 
     else:
         results_list = _evaluate_performance_single_thread(
-            item_iterator=grouped_data.items(),
-            total=len(grouped_data),
-            k_list=k_list,
-            metrics=metrics,
-            verbose=verbose,
+            group_dict=grouped_data, k_list=k_list, metrics=metrics, verbose=verbose,
         )
 
     if reduce:

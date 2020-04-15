@@ -13,10 +13,10 @@ __all__ = [
 
 
 def average_precision(scores, labels, ranks, k):
-    labels_at_k, ranks_at_k = labels[:k], ranks[:k]
+    labels_at_k = labels[:k]
     if not labels_at_k.any():
         return 0.0  # TODO: verify default value
-    precisions = labels_at_k[labels_at_k].cumsum() / ranks_at_k[labels_at_k]
+    precisions = labels_at_k[labels_at_k].cumsum() / ranks[:k][labels_at_k]
     return precisions.mean()
 
 
