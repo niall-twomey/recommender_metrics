@@ -1,5 +1,7 @@
 # Recommender Metrics
 
+
+
 ## Introduction
 
 This is a very basic package that implements recommendation metrics. The library was written with the intent of being 
@@ -7,10 +9,12 @@ simple and straightforward to understand/maintain/expand instead of optimising f
 
 The main functions of the library are: 
 
- - `recommender_metrics.metrics.calculate_metrics` 
- - `recommender_metrics.metrics.calculate_metrics_from_dataframe` 
+ - `recommender_metrics.calculate_metrics` 
+ - `recommender_metrics.calculate_metrics_from_dataframe` 
 
 and their docstrings outline their use in detail. 
+
+
 
 ## Installation 
 
@@ -29,7 +33,6 @@ Execute the following command
 ```shell script
 pip install git+https://github.com/niall-twomey/recommender_metrics.git@master
 ```
-
 
 
 ## Basic examples 
@@ -170,3 +173,37 @@ Note, that in this case the `group_id` columns is an integer, but in reality it 
 The metrics can be calculated directly from a dataframe with the `calculate_metrics_from_dataframe`. By default this
 function requires that the input dataframe has columns `group_id`, `label` and `score`. However, if these are called
 something different, their names can be specified with the optional `group_col`, `label_col` and `score_col` arguments. 
+
+
+
+## Development 
+
+Styling is achieved with [black](https://github.com/psf/black) and [flake8](https://gitlab.com/pycqa/flake8) with minor 
+modifications in the `~/.flake8` and `~/.pyproject.toml` files. These styles are enforced with 
+[pre-commit](https://pre-commit.com/) tool. Before development ensure that [PyEnv](https://github.com/pyenv/pyenv) and 
+[Pipenv](https://github.com/pypa/pipenv) are installed. 
+
+```shell script
+pyenv install 3.6.10
+pipenv install --dev --python 3.6
+pipenv run pre-commit install 
+```
+
+This will install pre-commit tools so that black, flake8, and reorder python imports will be executed before committing. 
+Only when these all succeed will the commit actually go ahead. 
+
+To run tests/build/install: 
+
+```shell script
+python setup.py test 
+python setup.py build 
+python setup.py install 
+```
+
+If not in the pip environment, instead use 
+
+```shell script
+pipenv run python setup.py test
+pipenv run python setup.py build
+pipenv run python setup.py install
+```

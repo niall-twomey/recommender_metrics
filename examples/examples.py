@@ -51,7 +51,7 @@ def example3():
     print("  #labels:", len(labels))
     print()
 
-    metrics = calculate_metrics(group_ids=groups, scores=scores, labels=labels,)
+    metrics = calculate_metrics(group_ids=groups, scores=scores, labels=labels)
     print("Metrics:")
     print(json.dumps(metrics, indent=2))
     print("\n\n\n")

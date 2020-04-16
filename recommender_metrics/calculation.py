@@ -45,7 +45,7 @@ def _reduce_results(results_list):
     for result in results_list:
         counter.update(result)
     count = float(len(results_list))
-    return {kk: vv / count for kk, vv in counter.items() if "@" in kk}
+    return {kk: float(vv) / count for kk, vv in counter.items() if "@" in kk}
 
 
 def _evaluate_performance_single_thread(group_dict, k_list, metrics, verbose):
@@ -185,12 +185,12 @@ def calculate_metrics_from_dataframe(
         group_ids=df[group_col].values,
         scores=df[score_col].values,
         labels=df[label_col].values,
+        k_list=k_list,
         ascending=ascending,
         metrics=metrics,
         verbose=verbose,
         reduce=reduce,
         n_threads=n_threads,
-        k_list=k_list,
     )
 
 

@@ -51,7 +51,7 @@ def _get_changepoints(group_ids):
 
 
 def sort_recommender_data(group_ids, scores, labels, ascending=False):
-    inds = _get_sorted_indices(group_ids=group_ids, scores=scores, ascending=ascending,)
+    inds = _get_sorted_indices(group_ids=group_ids, scores=scores, ascending=ascending)
 
     return group_ids[inds], scores[inds], labels[inds]
 
@@ -68,7 +68,7 @@ def partition_by_group_from_sorted(
             ranks=np.arange(1, end - start + 1).astype(int),
         )
         for start, end in verbose_iterator(
-            zip(split_inds[:-1], split_inds[1:],),
+            zip(split_inds[:-1], split_inds[1:]),
             total=len(split_inds) - 1,
             desc=f"Grouping data before evaluation",
             verbose=int(verbose) > 1,
@@ -85,7 +85,7 @@ def group_score_and_labelled_data(group_ids, scores, labels, ascending=False, ve
         group_ids=group_ids, scores=scores, labels=labels, ascending=ascending,
     )
 
-    sorted_data = dict(group_ids=group_ids, scores=scores, labels=labels,)
+    sorted_data = dict(group_ids=group_ids, scores=scores, labels=labels)
 
     grouped_data = partition_by_group_from_sorted(group_ids=group_ids, scores=scores, labels=labels, verbose=verbose)
 

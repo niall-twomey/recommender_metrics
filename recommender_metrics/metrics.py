@@ -21,8 +21,7 @@ def average_precision(scores, labels, ranks, k):
 
 
 def precision(scores, labels, ranks, k):
-    labels_at_k, ranks_at_k = labels[:k], ranks[:k]
-    return labels_at_k.sum() / ranks_at_k[-1]
+    return labels[:k].sum() / ranks[:k][-1]
 
 
 def recall(scores, labels, ranks, k):
@@ -44,10 +43,10 @@ def ndcg(scores, labels, ranks, k):
     # NOTE: this function is slow to compute
     if labels[:k].shape[0] <= 1:
         return 0  # TODO: check this default return value
-    return skl_metrics.ndcg_score(y_true=labels[None, :k], y_score=scores[None, :k], k=k,)
+    return skl_metrics.ndcg_score(y_true=labels[None, :k], y_score=scores[None, :k], k=k)
 
 
-METRIC_FUNCTIONS = dict(mAP=average_precision, precision=precision, recall=recall, auroc=auroc, ndcg=ndcg,)
+METRIC_FUNCTIONS = dict(mAP=average_precision, precision=precision, recall=recall, auroc=auroc, ndcg=ndcg)
 
 DEFAULT_METRICS = [
     "mAP",
