@@ -126,7 +126,7 @@ def calculate_metrics_from_dataframe(
     reduce: bool = True,
     remove_empty: bool = False,
     n_threads: int = 1,
-):
+) -> Union[Dict[str, float], List[Dict[str, float]]]:
     """
     This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
     configurable, by default the mean average precision at k (mAP@k), precision at k (precision@k)
@@ -202,8 +202,8 @@ def calculate_metrics_from_dataframe(
     results : dict or pandas.DataFrame
         If `reduce=True` a dictionary of metric name / metric result measures is returned. These
             are the results of averaging across `group_id`.
-        If `reduce=False` a pandas.DataFrame is returned. The rows of this are the groups and the
-            values are the results of the various specified metrics.
+        If `reduce=False` a list of dictionaries is returned. Each element corresponds to the metrics
+            estimated on a particular group.
     """
 
     return calculate_metrics(
@@ -226,12 +226,12 @@ def calculate_metrics(
     labels: np.ndarray,
     k_list: Optional[Union[int, List[int]]] = None,
     metrics: Optional[Union[List[str], Dict[str, Callable]]] = None,
-    ascending: int = False,
-    verbose: int = True,
-    reduce: int = True,
-    remove_empty: int = False,
+    ascending: bool = False,
+    verbose: bool = True,
+    reduce: bool = True,
+    remove_empty: bool = False,
     n_threads: int = 1,
-):
+) -> Union[Dict[str, float], List[Dict[str, float]]]:
     """
     This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
     configurable, by default the mean average precision at k (mAP@k), precision at k (precision@k)
@@ -303,8 +303,8 @@ def calculate_metrics(
     results : dict or pandas.DataFrame
         If `reduce=True` a dictionary of metric name / metric result measures is returned. These
             are the results of averaging across `group_id`.
-        If `reduce=False` a pandas.DataFrame is returned. The rows of this are the groups and the
-            values are the results of the various specified metrics.
+        If `reduce=False` a list of dictionaries is returned. Each element corresponds to the metrics
+            estimated on a particular group.
     """
 
     grouped_data = group_score_and_labelled_data(
