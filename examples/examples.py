@@ -57,7 +57,26 @@ def example3():
     print("\n\n\n")
 
 
+def example4():
+    from recommender_metrics import calculate_metrics
+    from recommender_metrics import generate_random_data
+    import json
+
+    groups, scores, labels = generate_random_data()
+    print("Data:")
+    print("  #groups:", len(groups))
+    print("  #scores:", len(scores))
+    print("  #labels:", len(labels))
+    print()
+
+    metrics = calculate_metrics(group_ids=groups, scores=scores, labels=labels, remove_empty=True)
+    print("Metrics:")
+    print(json.dumps(metrics, indent=2))
+    print("\n\n\n")
+
+
 if __name__ == "__main__":
     example1()
     example2()
     example3()
+    example4()

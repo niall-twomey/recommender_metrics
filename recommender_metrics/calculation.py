@@ -1,4 +1,12 @@
 from collections import Counter
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
+
+import numpy as np
 
 from recommender_metrics.metrics import DEFAULT_METRICS
 from recommender_metrics.metrics import METRIC_FUNCTIONS
@@ -14,7 +22,7 @@ __all__ = [
 ]
 
 
-def validate_k_list(k_list):
+def validate_k_list(k_list: Optional[Union[int, List[int]]]) -> List[int]:
     if k_list is None:
         return [1, 5, 10, 20]
     elif isinstance(k_list, int):
@@ -26,7 +34,9 @@ def validate_k_list(k_list):
     raise ValueError
 
 
-def validate_metrics(metrics, metric_dict=None):
+def validate_metrics(
+    metrics: Optional[Union[List[str], Dict[str, Callable]]], metric_dict: Dict[str, Callable] = None
+) -> Dict[str, Callable]:
     metric_dict = {**METRIC_FUNCTIONS, **(metric_dict or dict())}
     if metrics is None:
         metrics = DEFAULT_METRICS
@@ -40,7 +50,7 @@ def validate_metrics(metrics, metric_dict=None):
     return metrics
 
 
-def _reduce_results(results_list):
+def _reduce_results(results_list: List[Dict[str, float]]) -> Dict[str, float]:
     counter = Counter()
     for result in results_list:
         counter.update(result)
@@ -48,7 +58,9 @@ def _reduce_results(results_list):
     return {kk: float(vv) / count for kk, vv in counter.items() if "@" in kk}
 
 
-def _evaluate_performance_single_thread(group_dict, k_list, metrics, verbose):
+def _evaluate_performance_single_thread(
+    group_dict: Dict[Any, Dict[str, np.ndarray]], k_list: List[int], metrics: Dict[str, Callable], verbose: bool
+) -> List[Dict[str, float]]:
     results_list = [dict() for _ in range(len(group_dict))]
 
     # Iterate over groups
@@ -65,13 +77,20 @@ def _evaluate_performance_single_thread(group_dict, k_list, metrics, verbose):
     return results_list
 
 
-def _evaluate_performance_multipe_threads(grouped_data, k_list, metrics, n_threads):
+def _evaluate_performance_multiple_threads(
+    grouped_data: Dict[Any, Dict[str, np.ndarray]], k_list: List[int], metrics: Dict[str, Callable], n_threads: int
+) -> List[Dict[str, float]]:
     raise NotImplementedError
 
 
 def calculate_metrics_from_grouped_data(
-    grouped_data, k_list=None, metrics=None, verbose=True, reduce=True, n_threads=1,
-):
+    grouped_data: Dict[Any, Dict[str, np.ndarray]],
+    k_list: Optional[Union[int, List[int]]] = None,
+    metrics: Optional[Union[List[str], Dict[str, Callable]]] = None,
+    verbose: bool = True,
+    reduce: bool = True,
+    n_threads: int = 1,
+) -> Union[Dict[str, float], List[Dict[str, float]]]:
     assert isinstance(n_threads, int) and n_threads > 0
 
     # Do basic validation
@@ -80,7 +99,7 @@ def calculate_metrics_from_grouped_data(
 
     #  Calculate the results
     if n_threads > 1:
-        results_list = _evaluate_performance_multipe_threads(
+        results_list = _evaluate_performance_multiple_threads(
             grouped_data=grouped_data, k_list=k_list, metrics=metrics, n_threads=n_threads,
         )
 
@@ -97,15 +116,16 @@ def calculate_metrics_from_grouped_data(
 
 def calculate_metrics_from_dataframe(
     df,
-    k_list=None,
-    ascending=False,
-    group_col="group_id",
-    label_col="label",
-    score_col="score",
-    metrics=None,
-    verbose=True,
-    reduce=True,
-    n_threads=1,
+    group_col: str = "group_id",
+    label_col: str = "label",
+    score_col: str = "score",
+    k_list: Optional[Union[int, List[int]]] = None,
+    metrics: Optional[Union[List[str], Dict[str, Callable]]] = None,
+    ascending: bool = False,
+    verbose: bool = True,
+    reduce: bool = True,
+    remove_empty: bool = False,
+    n_threads: int = 1,
 ):
     """
     This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
@@ -169,6 +189,11 @@ def calculate_metrics_from_dataframe(
         This argument determines whether to return the (arrhythmic) mean of the scores across
         the groups.
 
+    remove_empty : bool, optional (default=False)
+        This argument specifies whether groups of data with no positive labels should be used
+        in evaluation. If `True` this effectively scales results by the CTR (if labels relate
+        to clicks).
+
     n_threads : int; optional (default=1)
         This argument specifies the number of threads that this computation is done.
 
@@ -190,12 +215,22 @@ def calculate_metrics_from_dataframe(
         metrics=metrics,
         verbose=verbose,
         reduce=reduce,
+        remove_empty=remove_empty,
         n_threads=n_threads,
     )
 
 
 def calculate_metrics(
-    group_ids, scores, labels, k_list=None, ascending=False, metrics=None, verbose=True, reduce=True, n_threads=1,
+    group_ids: np.ndarray,
+    scores: np.ndarray,
+    labels: np.ndarray,
+    k_list: Optional[Union[int, List[int]]] = None,
+    metrics: Optional[Union[List[str], Dict[str, Callable]]] = None,
+    ascending: int = False,
+    verbose: int = True,
+    reduce: int = True,
+    remove_empty: int = False,
+    n_threads: int = 1,
 ):
     """
     This function evaluates recommender metrics on a dataframe. While metric evaluation is fully
@@ -255,6 +290,11 @@ def calculate_metrics(
         This argument determines whether to return the (arrhythmic) mean of the scores across
         the groups.
 
+    remove_empty : bool, optional (default=False)
+        This argument specifies whether groups of data with no positive labels should be used
+        in evaluation. If `True` this effectively scales results by the CTR (if labels relate
+        to clicks).
+
     n_threads : int; optional (default=1)
         This argument specifies the number of threads that this computation is done.
 
@@ -267,10 +307,15 @@ def calculate_metrics(
             values are the results of the various specified metrics.
     """
 
-    sorted_data, grouped_data = group_score_and_labelled_data(
-        group_ids=group_ids, scores=scores, labels=labels, ascending=ascending, verbose=verbose,
+    grouped_data = group_score_and_labelled_data(
+        group_ids=group_ids,
+        scores=scores,
+        labels=labels,
+        ascending=ascending,
+        verbose=verbose,
+        remove_empty=remove_empty,
     )
 
     return calculate_metrics_from_grouped_data(
-        grouped_data, metrics=metrics, verbose=verbose, reduce=reduce, n_threads=n_threads, k_list=k_list,
+        grouped_data=grouped_data, metrics=metrics, verbose=verbose, reduce=reduce, n_threads=n_threads, k_list=k_list
     )

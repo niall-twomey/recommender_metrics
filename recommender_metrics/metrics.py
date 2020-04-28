@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 
-def average_precision(scores, labels, ranks, k):
+def average_precision(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> float:
     labels_at_k = labels[:k]
     if not labels_at_k.any():
         return 0.0  # TODO: verify default value
@@ -20,18 +20,18 @@ def average_precision(scores, labels, ranks, k):
     return precisions.mean()
 
 
-def precision(scores, labels, ranks, k):
+def precision(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> float:
     return labels[:k].sum() / ranks[:k][-1]
 
 
-def recall(scores, labels, ranks, k):
+def recall(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> float:
     denominator = labels.sum()
     if denominator == 0:
         return 1.0  # TODO: verify default value
     return labels[:k].sum() / denominator
 
 
-def auroc(scores, labels, ranks, k):
+def auroc(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> float:
     # NOTE: this function is slow to compute
     uniques = np.unique(labels[:k])
     if uniques.shape[0] == 1:
@@ -39,7 +39,7 @@ def auroc(scores, labels, ranks, k):
     return skl_metrics.roc_auc_score(y_true=labels[:k], y_score=scores[:k])
 
 
-def ndcg(scores, labels, ranks, k):
+def ndcg(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> float:
     # NOTE: this function is slow to compute
     if labels[:k].shape[0] <= 1:
         return 0  # TODO: check this default return value

@@ -121,5 +121,27 @@ class BasicTests(TestCase):
                     desc=case.get("name"),
                 )
 
+    def test_empty(self):
+        target = {
+            "mAP@1": 0.2631578947368421,
+            "precision@1": 0.2631578947368421,
+            "recall@1": 0.07631578947368421,
+            "mAP@5": 0.5046783625730993,
+            "precision@5": 0.3140350877192983,
+            "recall@5": 0.45743525480367586,
+            "mAP@10": 0.4538314536340852,
+            "precision@10": 0.2941520467836258,
+            "recall@10": 0.6738512949039264,
+            "mAP@20": 0.424754158736318,
+            "precision@20": 0.33355881010883454,
+            "recall@20": 1.0,
+        }
+
+        groups, scores, labels = recommender_metrics.generate_random_data()
+        metrics = recommender_metrics.calculate_metrics(
+            group_ids=groups, scores=scores, labels=labels, remove_empty=True
+        )
+        self.dict_vals_all_close(target=target, pred=metrics, desc=f"Removal of empty group labels")
+
     def test_multi_threads(self):
         pass
