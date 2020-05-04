@@ -21,7 +21,7 @@ def average_precision(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray,
 
 
 def precision(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> float:
-    return labels[:k].sum() / ranks[:k][-1]
+    return labels[:k].mean()
 
 
 def recall(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> float:

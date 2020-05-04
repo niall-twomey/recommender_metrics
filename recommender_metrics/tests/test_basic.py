@@ -84,6 +84,24 @@ TEST_CASE_LIST = [
             "recall@20": 1.0,
         },
     ),
+    dict(
+        kwargs=dict(zip(("group_ids", "scores", "labels"), recommender_metrics.generate_random_data(n_users=50000))),
+        name="Large sample",
+        targets={
+            "mAP@1": 0.25338,
+            "precision@1": 0.25338,
+            "recall@1": 0.25912677994227995,
+            "mAP@5": 0.40336191666666665,
+            "precision@5": 0.25206833333333345,
+            "recall@5": 0.591021176046176,
+            "mAP@10": 0.3937965079805996,
+            "precision@10": 0.251275753968254,
+            "recall@10": 0.8339520981240983,
+            "mAP@20": 0.3793676925719221,
+            "precision@20": 0.2516421896227267,
+            "recall@20": 1.0,
+        },
+    ),
 ]
 
 

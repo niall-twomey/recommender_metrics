@@ -1,9 +1,10 @@
-from collections import Counter
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -50,36 +51,33 @@ def validate_metrics(
     return metrics
 
 
-def _reduce_results(results_list: List[Dict[str, float]]) -> Dict[str, float]:
-    counter = Counter()
-    for result in results_list:
-        counter.update(result)
-    count = float(len(results_list))
-    return {kk: float(vv) / count for kk, vv in counter.items() if "@" in kk}
+def metric_iterator(k_list: List[int], metrics: Dict[str, Callable]) -> Iterator[Tuple[int, str, Callable]]:
+    for k in k_list:
+        for func_name, func in metrics.items():
+            yield k, func_name, func
 
 
 def _evaluate_performance_single_thread(
     group_dict: Dict[Any, Dict[str, np.ndarray]], k_list: List[int], metrics: Dict[str, Callable], verbose: bool
-) -> List[Dict[str, float]]:
-    results_list = [dict() for _ in range(len(group_dict))]
+) -> Tuple[List[str], np.ndarray]:
+    num_metrics = len(k_list) * len(metrics)
+    results = np.empty(shape=(len(group_dict), num_metrics))
 
     # Iterate over groups
-    for res, (group_id, group) in verbose_iterator(
-        iterator=zip(results_list, group_dict.items()),
-        verbose=verbose,
-        total=len(group_dict),
-        desc=f"Evaluating performance",
+    for gi, group in verbose_iterator(
+        iterator=enumerate(group_dict.values()), verbose=verbose, total=len(group_dict), desc=f"Evaluating performance",
     ):
-        for k in k_list:
-            for key, func in metrics.items():
-                res[f"{key}@{k}"] = func(k=k, **group)
+        for fi, (k, _, metric) in enumerate(metric_iterator(k_list, metrics)):
+            results[gi, fi] = metric(k=k, **group)
 
-    return results_list
+    keys = [f"{metric_name}@{k}" for k, metric_name, _ in metric_iterator(k_list, metrics)]
+
+    return keys, results
 
 
 def _evaluate_performance_multiple_threads(
     grouped_data: Dict[Any, Dict[str, np.ndarray]], k_list: List[int], metrics: Dict[str, Callable], n_threads: int
-) -> List[Dict[str, float]]:
+) -> Tuple[List[str], np.ndarray]:
     raise NotImplementedError
 
 
@@ -90,7 +88,7 @@ def calculate_metrics_from_grouped_data(
     verbose: bool = True,
     reduce: bool = True,
     n_threads: int = 1,
-) -> Union[Dict[str, float], List[Dict[str, float]]]:
+) -> Union[Dict[str, float], Dict[str, np.ndarray]]:
     assert isinstance(n_threads, int) and n_threads > 0
 
     # Do basic validation
@@ -99,19 +97,18 @@ def calculate_metrics_from_grouped_data(
 
     #  Calculate the results
     if n_threads > 1:
-        results_list = _evaluate_performance_multiple_threads(
+        keys, results = _evaluate_performance_multiple_threads(
             grouped_data=grouped_data, k_list=k_list, metrics=metrics, n_threads=n_threads,
         )
 
     else:
-        results_list = _evaluate_performance_single_thread(
+        keys, results = _evaluate_performance_single_thread(
             group_dict=grouped_data, k_list=k_list, metrics=metrics, verbose=verbose,
         )
 
     if reduce:
-        return _reduce_results(results_list=results_list)
-
-    return results_list
+        return dict(zip(keys, results.mean(0)))
+    return dict(zip(keys, results.T))
 
 
 def calculate_metrics_from_dataframe(
