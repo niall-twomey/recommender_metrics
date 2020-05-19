@@ -1,13 +1,11 @@
 import setuptools
 
-import recommender_metrics
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="recommender-metrics",
-    version=recommender_metrics.__version__,
+    version="0.1.9",
     author="Niall Twomey",
     author_email="twomeynj@gmail.com",
     description="Recommender metric evaluation",
