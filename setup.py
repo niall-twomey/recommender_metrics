@@ -1,13 +1,13 @@
 import setuptools
 
-from recommender_metrics import __version__ as version
+import recommender_metrics
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="recommender-metrics",
-    version=version,
+    version=recommender_metrics.__version__,
     author="Niall Twomey",
     author_email="twomeynj@gmail.com",
     description="Recommender metric evaluation",
@@ -22,7 +22,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.6",  # Hasn't been tested below this
     test_suite="nose.collector",
     tests_require=["nose"],
 )

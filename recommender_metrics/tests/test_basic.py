@@ -116,7 +116,7 @@ class BasicTests(TestCase):
             self.dict_vals_all_close(case.get("targets"), metrics, desc=case.get("name"))
 
     def test_numpy_input_k_int(self):
-        for k in recommender_metrics.validate_k_list(None):
+        for k in [1, 5, 10, 20]:
             for case in TEST_CASE_LIST:
                 metrics = time_func(
                     recommender_metrics.calculate_metrics, extra=case.get("name"), k_list=k, **case.get("kwargs")

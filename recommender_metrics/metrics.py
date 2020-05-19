@@ -35,14 +35,14 @@ def auroc(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> 
     # NOTE: this function is slow to compute
     uniques = np.unique(labels[:k])
     if uniques.shape[0] == 1:
-        return float(next(iter(uniques)))  # TODO: check this default return value
+        return float(uniques[0])  # TODO: check this default return value
     return skl_metrics.roc_auc_score(y_true=labels[:k], y_score=scores[:k])
 
 
 def ndcg(scores: np.ndarray, labels: np.ndarray, ranks: np.ndarray, k: int) -> float:
     # NOTE: this function is slow to compute
     if labels[:k].shape[0] <= 1:
-        return 0  # TODO: check this default return value
+        return 0.0  # TODO: check this default return value
     return skl_metrics.ndcg_score(y_true=labels[None, :k], y_score=scores[None, :k], k=k)
 
 
@@ -52,6 +52,6 @@ DEFAULT_METRICS = [
     "mAP",
     "precision",
     "recall",
-    # 'auroc',
-    # 'ndcg',
+    # "auroc",
+    # "ndcg",
 ]

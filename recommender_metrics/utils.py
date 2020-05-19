@@ -15,13 +15,15 @@ __all__ = [
 ]
 
 
-def _validate_data_type(arr: np.ndarray) -> np.ndarray:
+def _validate_data_type(arr: np.ndarray, dtype: Optional[Any]) -> np.ndarray:
     """
     Verify that an array type is a numpy array and is one dimensional.
 
     Parameters
     ----------
     arr : np.ndarray, dtype=any
+    dtype : Optional[Any]
+        The expected data type for the validated array
 
     Returns
     -------
@@ -31,6 +33,8 @@ def _validate_data_type(arr: np.ndarray) -> np.ndarray:
     if not isinstance(arr, np.ndarray):
         arr = np.asarray(arr)
     assert arr.ndim == 1
+    if dtype is not None:
+        return arr.astype(dtype)
     return arr
 
 
@@ -170,11 +174,7 @@ def partition_by_group_from_sorted(
     split_inds = _get_changepoints(group_ids)
 
     return {
-        group_ids[start]: dict(
-            scores=scores[start:end].astype(float),
-            labels=labels[start:end].astype(bool),
-            ranks=np.arange(1, end - start + 1).astype(int),
-        )
+        group_ids[start]: dict(scores=scores[start:end], labels=labels[start:end], ranks=np.arange(1, end - start + 1))
         for start, end in verbose_iterator(
             zip(split_inds[:-1], split_inds[1:]),
             total=len(split_inds) - 1,
@@ -218,9 +218,9 @@ def group_score_and_labelled_data(
             The group specification, see `partition_by_group_from_sorted` for details.
     """
 
-    group_ids = _validate_data_type(group_ids)
-    scores = _validate_data_type(scores)
-    labels = _validate_data_type(labels)
+    group_ids = _validate_data_type(group_ids, dtype=None)
+    scores = _validate_data_type(scores, dtype=float)
+    labels = _validate_data_type(labels, dtype=bool)
 
     group_ids, scores, labels = sort_recommender_data(
         group_ids=group_ids, scores=scores, labels=labels, ascending=ascending,

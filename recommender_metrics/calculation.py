@@ -15,15 +15,12 @@ from recommender_metrics.utils import group_score_and_labelled_data
 from recommender_metrics.utils import verbose_iterator
 
 __all__ = [
-    "calculate_metrics_from_grouped_data",
     "calculate_metrics_from_dataframe",
     "calculate_metrics",
-    "validate_k_list",
-    "validate_metrics",
 ]
 
 
-def validate_k_list(k_list: Optional[Union[int, List[int]]]) -> List[int]:
+def _validate_k_list(k_list: Optional[Union[int, List[int]]]) -> List[int]:
     if k_list is None:
         return [1, 5, 10, 20]
     elif isinstance(k_list, int):
@@ -35,7 +32,7 @@ def validate_k_list(k_list: Optional[Union[int, List[int]]]) -> List[int]:
     raise ValueError
 
 
-def validate_metrics(
+def _validate_metrics(
     metrics: Optional[Union[List[str], Dict[str, Callable]]], metric_dict: Dict[str, Callable] = None
 ) -> Dict[str, Callable]:
     metric_dict = {**METRIC_FUNCTIONS, **(metric_dict or dict())}
@@ -51,7 +48,7 @@ def validate_metrics(
     return metrics
 
 
-def metric_iterator(k_list: List[int], metrics: Dict[str, Callable]) -> Iterator[Tuple[int, str, Callable]]:
+def _metric_iterator(k_list: List[int], metrics: Dict[str, Callable]) -> Iterator[Tuple[int, str, Callable]]:
     for k in k_list:
         for func_name, func in metrics.items():
             yield k, func_name, func
@@ -67,10 +64,10 @@ def _evaluate_performance_single_thread(
     for gi, group in verbose_iterator(
         iterator=enumerate(group_dict.values()), verbose=verbose, total=len(group_dict), desc=f"Evaluating performance",
     ):
-        for fi, (k, _, metric) in enumerate(metric_iterator(k_list, metrics)):
+        for fi, (k, _, metric) in enumerate(_metric_iterator(k_list, metrics)):
             results[gi, fi] = metric(k=k, **group)
 
-    keys = [f"{metric_name}@{k}" for k, metric_name, _ in metric_iterator(k_list, metrics)]
+    keys = [f"{metric_name}@{k}" for k, metric_name, _ in _metric_iterator(k_list, metrics)]
 
     return keys, results
 
@@ -81,7 +78,7 @@ def _evaluate_performance_multiple_threads(
     raise NotImplementedError
 
 
-def calculate_metrics_from_grouped_data(
+def _calculate_metrics_from_grouped_data(
     grouped_data: Dict[Any, Dict[str, np.ndarray]],
     k_list: Optional[Union[int, List[int]]] = None,
     metrics: Optional[Union[List[str], Dict[str, Callable]]] = None,
@@ -89,11 +86,11 @@ def calculate_metrics_from_grouped_data(
     reduce: bool = True,
     n_threads: int = 1,
 ) -> Union[Dict[str, float], Dict[str, np.ndarray]]:
-    assert isinstance(n_threads, int) and n_threads > 0
+    assert isinstance(n_threads, int) and (n_threads > 0 or n_threads == -1)
 
     # Do basic validation
-    k_list = validate_k_list(k_list)
-    metrics = validate_metrics(metrics)
+    k_list = _validate_k_list(k_list)
+    metrics = _validate_metrics(metrics)
 
     #  Calculate the results
     if n_threads > 1:
@@ -313,6 +310,6 @@ def calculate_metrics(
         remove_empty=remove_empty,
     )
 
-    return calculate_metrics_from_grouped_data(
+    return _calculate_metrics_from_grouped_data(
         grouped_data=grouped_data, metrics=metrics, verbose=verbose, reduce=reduce, n_threads=n_threads, k_list=k_list
     )
