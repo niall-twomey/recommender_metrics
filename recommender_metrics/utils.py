@@ -174,7 +174,7 @@ def partition_by_group_from_sorted(
     split_inds = _get_changepoints(group_ids)
 
     return {
-        group_ids[start]: dict(scores=scores[start:end], labels=labels[start:end], ranks=np.arange(1, end - start + 1))
+        group_ids[start]: dict(labels=labels[start:end], scores=scores[start:end])
         for start, end in verbose_iterator(
             zip(split_inds[:-1], split_inds[1:]),
             total=len(split_inds) - 1,
