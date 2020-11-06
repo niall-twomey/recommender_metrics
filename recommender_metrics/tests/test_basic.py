@@ -205,7 +205,7 @@ class BasicTests(TestCase):
                 verbose=False,
                 remove_empty=remove_empty,
             )
-            for group_id, group in tqdm(groups.items(), total=len(groups)):
+            for group_id, group in tqdm(groups.items(), total=len(groups), desc=f"incremental {data['name']}"):
                 mets.append_group(scores=group["scores"], labels=group["labels"], weight=1)
 
             # This method below is correct and produces the same results as the above. however, it is *very* slow in

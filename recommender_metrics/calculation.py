@@ -14,6 +14,7 @@ from sklearn.base import BaseEstimator
 from recommender_metrics.metrics import DEFAULT_METRICS
 from recommender_metrics.metrics import METRIC_FUNCTIONS
 from recommender_metrics.utils import group_score_and_labelled_data
+from recommender_metrics.utils import validate_array_type
 from recommender_metrics.utils import verbose_iterator
 
 __all__ = [
@@ -58,11 +59,7 @@ def _metric_iterator(k_list: List[int], metrics: Dict[str, Callable]) -> Iterato
 
 
 def _evaluate_performance_single_thread(
-    group_dict: Dict[Any, Dict[str, np.ndarray]],
-    k_list: List[int],
-    metrics: Dict[str, Callable],
-    verbose: bool,
-    eps: float = 1e-9,
+    group_dict: Dict[Any, Dict[str, np.ndarray]], k_list: List[int], metrics: Dict[str, Callable], verbose: bool,
 ) -> Tuple[List[str], np.ndarray]:
     num_metrics = len(k_list) * len(metrics)
     results = np.empty(shape=(len(group_dict), num_metrics))
@@ -74,20 +71,13 @@ def _evaluate_performance_single_thread(
         for fi, (k, _, metric) in enumerate(_metric_iterator(k_list, metrics)):
             results[gi, fi] = metric(k=k, **group)
 
-    if eps:
-        results += np.random.uniform(-eps, eps, results.shape)
-
     keys = [f"{metric_name}@{k}" for k, metric_name, _ in _metric_iterator(k_list, metrics)]
 
     return keys, results
 
 
 def _evaluate_performance_multiple_threads(
-    grouped_data: Dict[Any, Dict[str, np.ndarray]],
-    k_list: List[int],
-    metrics: Dict[str, Callable],
-    n_threads: int,
-    eps: float = 1e-9,
+    grouped_data: Dict[Any, Dict[str, np.ndarray]], k_list: List[int], metrics: Dict[str, Callable], n_threads: int,
 ) -> Tuple[List[str], np.ndarray]:
     raise NotImplementedError
 
@@ -99,7 +89,6 @@ def _calculate_metrics_from_grouped_data(
     verbose: bool = True,
     reduce: bool = True,
     n_threads: int = 1,
-    eps: float = 1e-9,
 ) -> Union[Dict[str, float], Dict[str, np.ndarray]]:
     assert isinstance(n_threads, int) and (n_threads > 0 or n_threads == -1)
 
@@ -110,12 +99,12 @@ def _calculate_metrics_from_grouped_data(
     #  Calculate the results
     if n_threads > 1:
         keys, results = _evaluate_performance_multiple_threads(
-            grouped_data=grouped_data, k_list=k_list, metrics=metrics, n_threads=n_threads, eps=eps,
+            grouped_data=grouped_data, k_list=k_list, metrics=metrics, n_threads=n_threads,
         )
 
     else:
         keys, results = _evaluate_performance_single_thread(
-            group_dict=grouped_data, k_list=k_list, metrics=metrics, verbose=verbose, eps=eps,
+            group_dict=grouped_data, k_list=k_list, metrics=metrics, verbose=verbose,
         )
 
     if reduce:
@@ -337,16 +326,11 @@ def calculate_metrics(
         ascending=ascending,
         verbose=verbose,
         remove_empty=remove_empty,
+        eps=eps,
     )
 
     return _calculate_metrics_from_grouped_data(
-        grouped_data=grouped_data,
-        metrics=metrics,
-        verbose=verbose,
-        reduce=reduce,
-        n_threads=n_threads,
-        k_list=k_list,
-        eps=eps,
+        grouped_data=grouped_data, metrics=metrics, verbose=verbose, reduce=reduce, n_threads=n_threads, k_list=k_list,
     )
 
 
@@ -357,7 +341,16 @@ class IncrementalMetrics(BaseEstimator):
     each group individually.
     """
 
-    def __init__(self, k_list=None, metrics=None, ascending=False, verbose=True, remove_empty=False, n_threads=1):
+    def __init__(
+        self,
+        k_list=None,
+        metrics=None,
+        ascending=False,
+        verbose=True,
+        remove_empty=False,
+        n_threads=1,
+        eps: float = 1e-9,
+    ):
         """
         Parameters
         ----------
@@ -402,11 +395,17 @@ class IncrementalMetrics(BaseEstimator):
 
         n_threads : int; optional (default=1)
             This argument specifies the number of threads that this computation is done.
+
+        eps : float (default=1e-9)
+            This argument specifies the the range of noice that is added to the scores to break ties.
+            Scores will be modified to `scores + np.random.uniform(-eps, eps, shape)`. Set to 0 to
+            not do this.
         """
         self.ascending = ascending
         self.verbose = verbose
         self.remove_empty = remove_empty
         self.n_threads = n_threads
+        self.eps = eps
 
         self.k_list = _validate_k_list(k_list)
         self.metrics = _validate_metrics(metrics)
@@ -423,7 +422,7 @@ class IncrementalMetrics(BaseEstimator):
         self.weight_sum = 0.0
         self.aggregates = {kk: 0.0 for kk in self.metric_names}
 
-    def append_group(self, scores, labels, weight=1.0, are_sorted: bool = False):
+    def append_group(self, scores, labels, weight=1.0, assume_sorted: bool = False):
         """
         Parameters
         ----------
@@ -436,38 +435,49 @@ class IncrementalMetrics(BaseEstimator):
         weight : float (default=1.0)
             A weight assiciated with the group.
 
-        are_sorted : bool (default=False)
+        assume_sorted : bool (default=False)
             This argument specifies whether the function should sort by scores or not
         """
 
-        if self.remove_empty:
-            if not labels.any():
-                return
+        scores = validate_array_type(scores, dtype=float)
+        labels = validate_array_type(labels, dtype=bool)
 
-        scores = scores.astype(float)
-        labels = labels.astype(bool)
+        # Ignore unnecessary computations
+        if self.remove_empty and not labels.any():
+            return
 
-        if not are_sorted:
+        # Break ties
+        if self.eps:
+            scores = scores + np.random.uniform(-self.eps, self.eps, scores.shape)
+
+        # Performance enhancement, if known that scores are correctly sorted already
+        if not assume_sorted:
             rank_order = np.argsort(scores) if self.ascending else np.argsort(-scores)
             scores = scores[rank_order]
             labels = labels[rank_order]
 
+        # Perform the aggregation over this group
         for name, func in zip(self.metric_names, self.metric_funcs):
             self.aggregates[name] += func(labels=labels, scores=scores) * weight
 
         self.weight_sum += weight
 
     def resolve(self):
+        """Return a dictionary containing the metrics"""
         return {kk: vv / self.weight_sum for kk, vv in self.aggregates.items()}
 
     def keys(self):
+        """An iterator over metric keys"""
         return self.aggregates.keys()
 
     def values(self):
+        """An iterator over metric values"""
         return self.aggregates.values()
 
     def items(self):
+        """An iterator over metric items"""
         return self.aggregates.items()
 
     def __getitem__(self, item):
+        """A getter for a particular key"""
         return self.aggregates[item]

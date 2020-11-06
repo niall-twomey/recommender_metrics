@@ -11,11 +11,12 @@ __all__ = [
     "sort_recommender_data",
     "partition_by_group_from_sorted",
     "group_score_and_labelled_data",
+    "validate_array_type",
     "verbose_iterator",
 ]
 
 
-def _validate_data_type(arr: np.ndarray, dtype: Optional[Any]) -> np.ndarray:
+def validate_array_type(arr: np.ndarray, dtype: Optional[Any]) -> np.ndarray:
     """
     Verify that an array type is a numpy array and is one dimensional.
 
@@ -191,6 +192,7 @@ def group_score_and_labelled_data(
     remove_empty: bool = False,
     ascending: bool = False,
     verbose: bool = True,
+    eps: float = 1e-9,
 ) -> Dict[Any, Dict[str, np.ndarray]]:
     """
     This dict has `np.unique(group_ids).shape[0]` elements. The keys correspond to the unique values
@@ -211,6 +213,10 @@ def group_score_and_labelled_data(
         Specifies whether to sort based on ascending or descending scores.
     verbose : bool, optional (default=True)
         The default verbosity level
+    eps : float (default=1e-9)
+        This argument specifies the the range of noice that is added to the scores to break ties.
+        Scores will be modified to `scores + np.random.uniform(-eps, eps, shape)`. Set to 0 to
+        not do this.
 
     Returns
     -------
@@ -218,9 +224,12 @@ def group_score_and_labelled_data(
             The group specification, see `partition_by_group_from_sorted` for details.
     """
 
-    group_ids = _validate_data_type(group_ids, dtype=None)
-    scores = _validate_data_type(scores, dtype=float)
-    labels = _validate_data_type(labels, dtype=bool)
+    group_ids = validate_array_type(group_ids, dtype=None)
+    scores = validate_array_type(scores, dtype=float)
+    labels = validate_array_type(labels, dtype=bool)
+
+    if eps:
+        scores += np.random.uniform(-eps, eps, scores.shape)
 
     group_ids, scores, labels = sort_recommender_data(
         group_ids=group_ids, scores=scores, labels=labels, ascending=ascending,
