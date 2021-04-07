@@ -115,6 +115,16 @@ class BasicTests(TestCase):
             metrics = time_func(recommender_metrics.calculate_metrics, extra=case.get("name"), **case.get("kwargs"))
             self.dict_vals_all_close(case.get("targets"), metrics, desc=case.get("name"))
 
+    def test_numpy_input_with_weights(self):
+        for case in TEST_CASE_LIST:
+            metrics = time_func(
+                recommender_metrics.calculate_metrics,
+                extra=case.get("name") + "weighted",
+                weights=np.ones(len(case["kwargs"]["group_ids"])) / 10,
+                **case.get("kwargs"),
+            )
+            self.dict_vals_all_close(case.get("targets"), metrics, desc=case.get("name"))
+
     def test_numpy_input_k_int(self):
         for k in [1, 5, 10, 20]:
             for case in TEST_CASE_LIST:

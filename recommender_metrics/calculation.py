@@ -59,26 +59,37 @@ def _metric_iterator(k_list: List[int], metrics: Dict[str, Callable]) -> Iterato
 
 
 def _evaluate_performance_single_thread(
-    group_dict: Dict[Any, Dict[str, np.ndarray]], k_list: List[int], metrics: Dict[str, Callable], verbose: bool,
-) -> Tuple[List[str], np.ndarray]:
+    group_dict: Dict[Any, Dict[str, Union[float, np.ndarray]]],
+    k_list: List[int],
+    metrics: Dict[str, Callable],
+    verbose: bool,
+) -> Tuple[List[str], np.ndarray, np.ndarray]:
     num_metrics = len(k_list) * len(metrics)
     results = np.empty(shape=(len(group_dict), num_metrics))
+    weights = np.empty(shape=len(group_dict))
 
     # Iterate over groups
     for gi, group in verbose_iterator(
-        iterator=enumerate(group_dict.values()), verbose=verbose, total=len(group_dict), desc=f"Evaluating performance",
+        iterator=enumerate(group_dict.values()),
+        verbose=verbose,
+        total=len(group_dict),
+        desc=f"Evaluating performance",
     ):
+        weights[gi] = weight = group.pop("weight", 1.0)
         for fi, (k, _, metric) in enumerate(_metric_iterator(k_list, metrics)):
-            results[gi, fi] = metric(k=k, **group)
+            results[gi, fi] = metric(k=k, **group) * weight
 
     keys = [f"{metric_name}@{k}" for k, metric_name, _ in _metric_iterator(k_list, metrics)]
 
-    return keys, results
+    return keys, results, weights
 
 
 def _evaluate_performance_multiple_threads(
-    grouped_data: Dict[Any, Dict[str, np.ndarray]], k_list: List[int], metrics: Dict[str, Callable], n_threads: int,
-) -> Tuple[List[str], np.ndarray]:
+    grouped_data: Dict[Any, Dict[str, np.ndarray]],
+    k_list: List[int],
+    metrics: Dict[str, Callable],
+    n_threads: int,
+) -> Tuple[List[str], np.ndarray, np.ndarray]:
     raise NotImplementedError
 
 
@@ -98,17 +109,23 @@ def _calculate_metrics_from_grouped_data(
 
     #  Calculate the results
     if n_threads > 1:
-        keys, results = _evaluate_performance_multiple_threads(
-            grouped_data=grouped_data, k_list=k_list, metrics=metrics, n_threads=n_threads,
+        keys, results, weights = _evaluate_performance_multiple_threads(
+            grouped_data=grouped_data,
+            k_list=k_list,
+            metrics=metrics,
+            n_threads=n_threads,
         )
 
     else:
-        keys, results = _evaluate_performance_single_thread(
-            group_dict=grouped_data, k_list=k_list, metrics=metrics, verbose=verbose,
+        keys, results, weights = _evaluate_performance_single_thread(
+            group_dict=grouped_data,
+            k_list=k_list,
+            metrics=metrics,
+            verbose=verbose,
         )
 
     if reduce:
-        return dict(zip(keys, results.mean(0)))
+        return dict(zip(keys, results.sum(0) / weights.sum()))
 
     return dict(zip(keys, results.T))
 
@@ -230,6 +247,7 @@ def calculate_metrics(
     group_ids: np.ndarray,
     scores: np.ndarray,
     labels: np.ndarray,
+    weights: Optional[np.ndarray] = None,
     k_list: Optional[Union[int, List[int]]] = None,
     metrics: Optional[Union[List[str], Dict[str, Callable]]] = None,
     ascending: bool = False,
@@ -262,6 +280,9 @@ def calculate_metrics(
 
     labels : list, ndarray, pandas Series; length N
         This array specifies the ground truth labels that are used for evaluation.
+
+    weights : list, ndarray, pandas Series; length N
+        This array specifies the weights associated with particular instances
 
     k_list : int, list(int); optional (default=None)
         This specifies the level to which the performance metrics are calculated (e.g. mAP@20).
@@ -323,6 +344,7 @@ def calculate_metrics(
         group_ids=group_ids,
         scores=scores,
         labels=labels,
+        weights=weights,
         ascending=ascending,
         verbose=verbose,
         remove_empty=remove_empty,
@@ -330,7 +352,12 @@ def calculate_metrics(
     )
 
     return _calculate_metrics_from_grouped_data(
-        grouped_data=grouped_data, metrics=metrics, verbose=verbose, reduce=reduce, n_threads=n_threads, k_list=k_list,
+        grouped_data=grouped_data,
+        metrics=metrics,
+        verbose=verbose,
+        reduce=reduce,
+        n_threads=n_threads,
+        k_list=k_list,
     )
 
 

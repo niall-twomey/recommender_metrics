@@ -115,8 +115,8 @@ def _get_changepoints(group_ids: np.ndarray) -> np.ndarray:
 
 
 def sort_recommender_data(
-    group_ids: np.ndarray, scores: np.ndarray, labels: np.ndarray, ascending: bool = False
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    group_ids: np.ndarray, scores: np.ndarray, labels: np.ndarray, weights: np.ndarray, ascending: bool = False
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     This function takes the group specification, scores and labels arrays. The function then sorts
     these according to the groups and scores, and returns the sorted arrays.
@@ -129,6 +129,8 @@ def sort_recommender_data(
         Array containing the scores
     labels : np.ndarray
         Array containing the labels
+    weights : np.ndarray
+        Array containing the weights
     ascending : bool, optional (default=False)
         Whether to sort in ascending or descending (default) order
 
@@ -140,15 +142,17 @@ def sort_recommender_data(
             The scores sorted by (group_id, score)
         labels_sorted : np.ndarray
             The labels sorted by (group_id, score)
+        weights_sorted : np.ndarray
+            The labels sorted by (group_id, score)
     """
 
     inds = _get_sorted_indices(group_ids=group_ids, scores=scores, ascending=ascending)
 
-    return group_ids[inds], scores[inds], labels[inds]
+    return group_ids[inds], scores[inds], labels[inds], weights[inds]
 
 
 def partition_by_group_from_sorted(
-    group_ids: np.ndarray, scores: np.ndarray, labels: np.ndarray, verbose: bool = False
+    group_ids: np.ndarray, scores: np.ndarray, labels: np.ndarray, weights: np.ndarray, verbose: bool = False
 ) -> Dict[Any, Dict[str, np.ndarray]]:
     """
     This function takes in (sorted) group spec, scores and labels and slices these into a dictionary
@@ -163,6 +167,8 @@ def partition_by_group_from_sorted(
         Array containing the scores
     labels : np.ndarray
         Array containing the labels
+    weights : np.ndarray
+        Array containing the weights
     verbose : bool, optional (default=False)
 
     Returns
@@ -175,7 +181,7 @@ def partition_by_group_from_sorted(
     split_inds = _get_changepoints(group_ids)
 
     return {
-        group_ids[start]: dict(labels=labels[start:end], scores=scores[start:end])
+        group_ids[start]: dict(labels=labels[start:end], scores=scores[start:end], weight=weights[start])
         for start, end in verbose_iterator(
             zip(split_inds[:-1], split_inds[1:]),
             total=len(split_inds) - 1,
@@ -189,6 +195,7 @@ def group_score_and_labelled_data(
     group_ids: np.ndarray,
     scores: np.ndarray,
     labels: np.ndarray,
+    weights: Optional[np.ndarray] = None,
     remove_empty: bool = False,
     ascending: bool = False,
     verbose: bool = True,
@@ -207,6 +214,8 @@ def group_score_and_labelled_data(
         Array containing the scores
     labels : np.ndarray
         Array containing the labels
+    weights : np.ndarray
+        Array containing the weights
     remove_empty : bool, optional (default=False)
         Specifies whether to keep or remove groups with no positive labels
     ascending : bool, optional (default=False)
@@ -226,16 +235,25 @@ def group_score_and_labelled_data(
 
     group_ids = validate_array_type(group_ids, dtype=None)
     scores = validate_array_type(scores, dtype=float)
+    if weights is None:
+        weights = np.ones_like(scores)
+    weights = validate_array_type(weights, dtype=float)
     labels = validate_array_type(labels, dtype=bool)
 
     if eps:
         scores += np.random.uniform(-eps, eps, scores.shape)
 
-    group_ids, scores, labels = sort_recommender_data(
-        group_ids=group_ids, scores=scores, labels=labels, ascending=ascending,
+    group_ids, scores, labels, weights = sort_recommender_data(
+        group_ids=group_ids,
+        scores=scores,
+        labels=labels,
+        weights=weights,
+        ascending=ascending,
     )
 
-    grouped_data = partition_by_group_from_sorted(group_ids=group_ids, scores=scores, labels=labels, verbose=verbose)
+    grouped_data = partition_by_group_from_sorted(
+        group_ids=group_ids, scores=scores, labels=labels, weights=weights, verbose=verbose
+    )
 
     if remove_empty:
         grouped_data = {kk: vv for kk, vv in grouped_data.items() if vv["labels"].any()}
