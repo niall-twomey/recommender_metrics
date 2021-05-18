@@ -61,7 +61,7 @@ def ndcg(labels: np.ndarray, scores: np.ndarray, k: int) -> float:
     # NOTE: this function is slow to compute
     if labels[:k].shape[0] <= 1:
         return 0.0  # TODO: check this default return value
-    return 0.0  # skl_metrics.ndcg_score(y_true=labels[None, :k], y_score=scores[None, :k], k=k)
+    return skl_metrics.ndcg_score(y_true=labels[None, :k], y_score=scores[None, :k], k=k)
 
 
 METRIC_FUNCTIONS = dict(mAP=average_precision, precision=precision, recall=recall, auroc=auroc, ndcg=ndcg)
