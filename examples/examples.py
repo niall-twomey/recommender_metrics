@@ -13,6 +13,8 @@ def example1():
     import numpy as np
     import json
 
+    print("Running example1")
+
     rng = np.random.RandomState(1234)
     metrics = calculate_metrics(
         group_ids=rng.randint(0, 10, 100), scores=rng.normal(0, 1, 100), labels=rng.rand(100) > 0.8,
@@ -25,6 +27,8 @@ def example2():
     from recommender_metrics import calculate_metrics
     from recommender_metrics import search_data
     import json
+
+    print("Running example2")
 
     groups, positions, labels = search_data()
     print("Data:")
@@ -44,6 +48,8 @@ def example3():
     from recommender_metrics import generate_random_data
     import json
 
+    print("Running example3")
+
     groups, scores, labels = generate_random_data()
     print("Data:")
     print("  #groups:", len(groups))
@@ -57,7 +63,28 @@ def example3():
     print("\n\n\n")
 
 
+def example4():
+    from recommender_metrics import calculate_metrics
+    from recommender_metrics import generate_random_data
+    import json
+
+    print("Running example4")
+
+    groups, scores, labels = generate_random_data()
+    print("Data:")
+    print("  #groups:", len(groups))
+    print("  #scores:", len(scores))
+    print("  #labels:", len(labels))
+    print()
+
+    metrics = calculate_metrics(group_ids=groups, scores=scores, labels=labels, metrics=['mAP', 'precision', 'recall', 'ndcg', 'auroc'])
+    print("Metrics:")
+    print(json.dumps(metrics, indent=2))
+    print("\n\n\n")
+
+
 if __name__ == "__main__":
     example1()
     example2()
     example3()
+    example4()
