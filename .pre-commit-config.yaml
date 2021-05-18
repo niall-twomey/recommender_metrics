@@ -1,14 +1,22 @@
 repos:
--   repo: https://github.com/ambv/black
-    rev: stable
+  - repo: https://github.com/psf/black
+    rev: 20.8b1
     hooks:
-    - id: black
-      language_version: python3.6
--   repo: https://gitlab.com/pycqa/flake8
+      - id: black
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: v2.4.0
+    hooks:
+      - id: reorder-python-imports
+  - repo: https://gitlab.com/pycqa/flake8
     rev: 3.7.9
     hooks:
-    - id: flake8
--   repo: https://github.com/asottile/reorder_python_imports
-    rev: v2.2.0
+      - id: flake8
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
     hooks:
-    -   id: reorder-python-imports
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: detect-aws-credentials
+      - id: no-commit-to-branch
+        args: [ '--branch', 'main' ]
